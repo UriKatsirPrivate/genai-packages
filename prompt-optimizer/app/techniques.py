@@ -176,8 +176,10 @@ TECHNIQUES: tuple[Technique, ...] = (
         ),
         apply_hint=(
             "Include 2-4 concrete input->output examples matching the real "
-            "task; when refusal matters, one example must show an "
-            "unanswerable input met with 'I don't know'."
+            "task, one of which shows an ambiguous or unanswerable input "
+            "met with an explicit refusal ('I don't know', or a refusal "
+            "label fitting the output format) — omit the refusal demo only "
+            "when it would be outright nonsensical for the task."
         ),
     ),
     Technique(

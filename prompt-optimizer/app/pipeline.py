@@ -8,10 +8,15 @@ gets a fixed budget of thought).
 """
 
 import asyncio
+import json
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from .config import Settings
 from .llm import LLM
 from .models import (
+    ChatReply,
+    ChatRequest,
     CriticReport,
     OptimizeRequest,
     OptimizeResponse,
@@ -20,6 +25,13 @@ from .models import (
     WriterOutput,
 )
 from .techniques import TECHNIQUES, TECHNIQUES_BY_ID, Technique, technique_card
+
+
+ProgressCallback = Callable[[dict[str, Any]], Awaitable[None]]
+
+
+async def _no_progress(event: dict[str, Any]) -> None:
+    return None
 
 
 def _block(label: str, body: str) -> str:
@@ -91,8 +103,13 @@ character-level operation, never mental arithmetic or inspection.
 in the provided material, and note that a search/grounding tool is \
 recommended.
 - If 07: include 2-4 concrete, fully written input->output examples matching \
-the real task; when the profile says refusal_matters, one example must show \
-an unanswerable input answered with "I don't know".
+the real task. One of them MUST show an ambiguous or unanswerable input \
+answered with an explicit refusal — "I don't know", "cannot determine", or a \
+refusal adapted to the task's output format (e.g. an "Undetermined" label \
+for classification) — because in-context learning copies restraint, not \
+just format. Omit the refusal example ONLY if it would be outright \
+nonsensical for this task; when in doubt, include it. When the profile says \
+refusal_matters, it is never optional.
 - If 08: end with a self-verification step (re-check the answer against the \
 source and requirements before finishing).
 - Weave the techniques into one coherent prompt — no redundancy, no \
@@ -120,13 +137,39 @@ enough. Verify the specifics: technique 01 needs a delimited {{SOURCE_TEXT}} \
 slot with an answer-only-from-it instruction; 02/03 need visible working with \
 the final answer last; 04/05 need explicit use-code instructions; 06 needs \
 explicit permission to say "I don't know" AND a note recommending a \
-search/grounding tool; 07 needs fully written input->output examples, and \
-when the profile says refusal_matters, one example must show an unanswerable \
-input answered with "I don't know"; 08 needs a final self-verification step.
+search/grounding tool; 07 needs fully written input->output examples INCLUDING one where an \
+ambiguous or unanswerable input is met with an explicit refusal — "I don't \
+know", "cannot determine", or a refusal adapted to the output format (e.g. \
+an "Undetermined" label) — and you must reject its absence unless a refusal \
+example would be outright nonsensical for this task (when in doubt, require \
+it); 08 needs a final self-verification step.
 
 Set approved=true only if every check is realized. When rejecting, write \
 feedback as concrete rewrite instructions — what to add, where, and in what \
 wording — not general commentary.\
+"""
+
+
+CHAT_SYSTEM = """\
+You are the follow-up assistant for a completed prompt-optimization run. You \
+receive the full run context — use case, profile, all technique verdicts, \
+critic report, the technique catalog, and the CURRENT optimized prompt — \
+plus the conversation so far. The last conversation turn is the one to \
+answer.
+
+You have two jobs:
+1. Answer questions about the result. Ground every answer in the provided \
+context and the technique cards' first principles — never invent facts \
+about the run that are not in the context.
+2. Apply requested modifications. When the user asks for a change, set \
+updated_prompt to the COMPLETE revised prompt — never a fragment, diff, or \
+summary. Preserve every realized technique unless the user explicitly asks \
+to drop one; if the request weakens a technique, comply where sensible but \
+say so in reply, citing the technique number.
+
+Set updated_prompt ONLY when the user asked for a modification; otherwise \
+leave it null. Keep reply concise plain text (no markdown headers), and \
+when you changed the prompt, summarize what changed in reply.\
 """
 
 
@@ -139,20 +182,80 @@ class PromptOptimizer:
     def settings(self) -> Settings:
         return self._settings
 
-    async def optimize(self, req: OptimizeRequest) -> OptimizeResponse:
+    async def optimize(
+        self,
+        req: OptimizeRequest,
+        progress: ProgressCallback | None = None,
+    ) -> OptimizeResponse:
+        emit = progress or _no_progress
+
+        await emit({"event": "stage", "stage": "analyzer", "status": "running"})
         profile = await self._analyze(req)
-        verdicts = await self._judge_all(req, profile)
+        await emit(
+            {
+                "event": "stage",
+                "stage": "analyzer",
+                "status": "done",
+                "task_type": profile.task_type,
+            }
+        )
+
+        await emit(
+            {
+                "event": "stage",
+                "stage": "judges",
+                "status": "running",
+                "total": len(TECHNIQUES),
+            }
+        )
+        verdicts = await self._judge_all(req, profile, emit)
         selected = sorted(
             (v for v in verdicts if v.relevant),
             key=lambda v: (v.priority, v.technique_id),
         )
+        await emit(
+            {
+                "event": "stage",
+                "stage": "judges",
+                "status": "done",
+                "applied": len(selected),
+            }
+        )
 
+        draft = 1
+        await emit(
+            {"event": "stage", "stage": "writer", "status": "running", "draft": draft}
+        )
         writer = await self._write(req, profile, selected)
+        await emit(
+            {"event": "stage", "stage": "writer", "status": "done", "draft": draft}
+        )
+        await emit(
+            {"event": "stage", "stage": "critic", "status": "running", "round": draft}
+        )
         critic = await self._critique(writer.optimized_prompt, profile, selected)
+        await emit(
+            {
+                "event": "stage",
+                "stage": "critic",
+                "status": "done",
+                "round": draft,
+                "approved": critic.approved,
+            }
+        )
 
         revisions = 0
         while not critic.approved and revisions < self._settings.max_critic_revisions:
             revisions += 1
+            draft += 1
+            await emit(
+                {
+                    "event": "stage",
+                    "stage": "writer",
+                    "status": "running",
+                    "draft": draft,
+                }
+            )
             writer = await self._write(
                 req,
                 profile,
@@ -160,7 +263,27 @@ class PromptOptimizer:
                 previous_draft=writer.optimized_prompt,
                 feedback=critic.feedback,
             )
+            await emit(
+                {"event": "stage", "stage": "writer", "status": "done", "draft": draft}
+            )
+            await emit(
+                {
+                    "event": "stage",
+                    "stage": "critic",
+                    "status": "running",
+                    "round": draft,
+                }
+            )
             critic = await self._critique(writer.optimized_prompt, profile, selected)
+            await emit(
+                {
+                    "event": "stage",
+                    "stage": "critic",
+                    "status": "done",
+                    "round": draft,
+                    "approved": critic.approved,
+                }
+            )
 
         return OptimizeResponse(
             optimized_prompt=writer.optimized_prompt,
@@ -172,6 +295,48 @@ class PromptOptimizer:
             model=self._settings.model,
         )
 
+    async def chat(self, req: ChatRequest) -> ChatReply:
+        blocks = [_block("USE CASE", req.use_case)]
+        if req.existing_prompt:
+            blocks.append(
+                _block("ORIGINAL PROMPT (before optimization)", req.existing_prompt)
+            )
+        blocks.append(
+            _block(
+                "USE-CASE PROFILE",
+                req.result.use_case_profile.model_dump_json(indent=2),
+            )
+        )
+        blocks.append(
+            _block(
+                "TECHNIQUE VERDICTS",
+                json.dumps(
+                    [v.model_dump() for v in req.result.techniques], indent=2
+                ),
+            )
+        )
+        blocks.append(
+            _block("CRITIC REPORT", req.result.critic.model_dump_json(indent=2))
+        )
+        blocks.append(
+            _block(
+                "TECHNIQUE CATALOG",
+                "\n\n".join(technique_card(t) for t in TECHNIQUES),
+            )
+        )
+        blocks.append(
+            _block("CURRENT OPTIMIZED PROMPT", req.result.optimized_prompt)
+        )
+        blocks.append(
+            _block(
+                "CONVERSATION",
+                "\n\n".join(f"{m.role.upper()}: {m.content}" for m in req.messages),
+            )
+        )
+        return await self._llm.generate_structured(
+            system=CHAT_SYSTEM, user=_join(*blocks), schema=ChatReply
+        )
+
     async def _analyze(self, req: OptimizeRequest) -> UseCaseProfile:
         blocks = [_block("USE CASE", req.use_case)]
         if req.existing_prompt:
@@ -181,11 +346,33 @@ class PromptOptimizer:
         )
 
     async def _judge_all(
-        self, req: OptimizeRequest, profile: UseCaseProfile
+        self,
+        req: OptimizeRequest,
+        profile: UseCaseProfile,
+        emit: ProgressCallback = _no_progress,
     ) -> list[TechniqueVerdict]:
-        raw = await asyncio.gather(
-            *(self._judge(t, req, profile) for t in TECHNIQUES)
-        )
+        done = 0
+        lock = asyncio.Lock()
+
+        async def judge_and_report(t: Technique) -> TechniqueVerdict:
+            nonlocal done
+            v = await self._judge(t, req, profile)
+            async with lock:
+                done += 1
+                await emit(
+                    {
+                        "event": "judge_done",
+                        "technique_id": t.id,
+                        "name": t.name,
+                        "relevant": v.relevant,
+                        "priority": v.priority,
+                        "done": done,
+                        "total": len(TECHNIQUES),
+                    }
+                )
+            return v
+
+        raw = await asyncio.gather(*(judge_and_report(t) for t in TECHNIQUES))
         verdicts: list[TechniqueVerdict] = []
         for t, v in zip(TECHNIQUES, raw):
             update: dict[str, str] = {"technique_id": t.id, "name": t.name}

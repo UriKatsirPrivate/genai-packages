@@ -4,6 +4,7 @@ import pytest
 
 from app.config import Settings
 from app.models import (
+    ChatReply,
     CriticCheck,
     CriticReport,
     TechniqueVerdict,
@@ -34,10 +35,12 @@ class FakeLLM:
         reject_critic_first_n: int = 0,
         irrelevant_ids: tuple[str, ...] = ("04", "07"),
         error: Exception | None = None,
+        chat_updated_prompt: str | None = None,
     ) -> None:
         self.reject_critic_first_n = reject_critic_first_n
         self.irrelevant_ids = set(irrelevant_ids)
         self.error = error
+        self.chat_updated_prompt = chat_updated_prompt
         self.calls: list[tuple[str, str, str]] = []
         self._verdict_calls = 0
         self._writer_calls = 0
@@ -69,6 +72,11 @@ class FakeLLM:
             return WriterOutput(
                 design_notes=f"design notes for draft {self._writer_calls}",
                 optimized_prompt=f"OPTIMIZED PROMPT (draft {self._writer_calls})",
+            )
+        if issubclass(schema, ChatReply):
+            return ChatReply(
+                reply="fake chat reply",
+                updated_prompt=self.chat_updated_prompt,
             )
         if issubclass(schema, CriticReport):
             self._critic_calls += 1

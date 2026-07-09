@@ -5,6 +5,8 @@ BEFORE verdict fields, so the model spends tokens thinking before it commits
 to an answer (technique #03 — answer last, not first — applied to ourselves).
 """
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -112,3 +114,32 @@ class OptimizeResponse(BaseModel):
     )
     design_notes: str
     model: str
+
+
+# --------------------------------------------------------------------------
+# Follow-up chat about a completed run
+# --------------------------------------------------------------------------
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    use_case: str
+    existing_prompt: str | None = None
+    result: OptimizeResponse = Field(
+        description="The completed run the conversation is about; "
+        "optimized_prompt reflects any edits from earlier chat turns"
+    )
+    messages: list[ChatTurn] = Field(
+        min_length=1, description="Conversation so far, latest user turn last"
+    )
+
+
+class ChatReply(BaseModel):
+    reply: str = Field(description="Plain-text answer to the user")
+    updated_prompt: str | None = Field(
+        default=None,
+        description="The COMPLETE revised prompt, only when the user asked "
+        "for a modification",
+    )

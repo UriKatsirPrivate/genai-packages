@@ -61,6 +61,7 @@
   header {
     padding: 20px 28px; border-bottom: 1px solid var(--line); background: var(--panel);
     display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    position: sticky; top: 0; z-index: 20;
   }
   header h1 { margin: 0; font-size: 19px; letter-spacing: -0.01em; }
   header .sub { color: var(--muted); font-size: 13px; }
@@ -75,10 +76,82 @@
     display: grid; grid-template-columns: minmax(340px, 430px) 1fr;
     gap: 24px; padding: 24px 28px; max-width: 1400px; margin: 0 auto;
   }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+    /* single column: a fixed sidebar would cover the results, so keep the
+       chat in flow, sized to fit the window */
+    .left-col.chat-mode { position: static; width: auto; }
+    main.chat-active section { grid-column: auto; }
+    #chat-panel.on { max-height: 72vh; }
+  }
 
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
-  form.panel { align-self: start; position: sticky; top: 24px; }
+  .left-col { display: flex; flex-direction: column; gap: 24px;
+    align-self: start; position: sticky; top: 24px; }
+
+  /* chat-mode: pin the whole left column to the viewport so the chat
+     fits the window and floats regardless of main-page scrolling */
+  .left-col.chat-mode {
+    position: fixed; top: 24px;
+    height: calc(100vh - 48px);
+    width: min(430px, calc(100vw - 56px));
+    left: calc(max(0px, (100vw - 1400px) / 2) + 28px);
+    z-index: 10;
+  }
+  .left-col.chat-mode form { overflow-y: auto; }
+  /* the fixed column leaves the grid flow — keep the results in column 2 */
+  main.chat-active section { grid-column: 2; }
+
+  #run-summary { display: none; padding: 10px 14px; }
+  #run-summary.on { display: flex; align-items: center; gap: 8px; }
+  #toggle-form { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0;
+    border: 0; background: transparent; color: var(--ink); cursor: pointer;
+    font-size: 13px; text-align: left; padding: 4px 2px; }
+  #start-over { border: 1px solid var(--line); background: transparent;
+    color: var(--muted); border-radius: 8px; padding: 6px 10px; font-size: 12px;
+    cursor: pointer; white-space: nowrap; }
+  #start-over:hover { color: var(--warn); border-color: var(--warn); }
+  .rs-label { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--muted); white-space: nowrap; }
+  .rs-text { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .rs-chevron { color: var(--muted); transition: transform .2s; }
+
+  #chat-panel { display: none; }
+  #chat-panel.on { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  #chat-messages { flex: 1; min-height: 120px; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 14px; margin-bottom: 12px;
+    scroll-behavior: smooth; }
+  .chat-row { display: flex; gap: 10px; }
+  .chat-row.user { justify-content: flex-end; }
+  .chat-avatar { flex: 0 0 26px; height: 26px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent-ink); font-size: 13px;
+    display: flex; align-items: center; justify-content: center; }
+  .chat-msg { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap;
+    word-break: break-word; }
+  .chat-msg.user { background: var(--accent); color: #fff; padding: 9px 14px;
+    border-radius: 18px; border-bottom-right-radius: 5px; max-width: 85%; }
+  .chat-msg.assistant { color: var(--ink); padding: 3px 0; }
+  .chat-msg.chat-error { color: var(--warn); }
+  .typing { display: inline-flex; gap: 4px; padding: 6px 0; }
+  .typing span { width: 7px; height: 7px; border-radius: 50%;
+    background: var(--muted); animation: blink 1.2s infinite; }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+
+  .composer { display: flex; align-items: flex-end; gap: 8px;
+    border: 1px solid var(--line); border-radius: 24px;
+    background: var(--field); padding: 8px 8px 8px 16px; }
+  .composer:focus-within { border-color: var(--accent); }
+  .composer textarea { flex: 1; border: 0; background: transparent; resize: none;
+    padding: 6px 0; max-height: 120px; font-family: inherit; font-size: 13.5px;
+    line-height: 1.5; }
+  .composer textarea:focus { outline: none; }
+  .composer button { flex: 0 0 34px; height: 34px; border-radius: 50%;
+    border: 0; background: var(--accent); color: #fff; font-size: 16px;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .composer button:hover:not(:disabled) { background: var(--accent-hover); }
+  .composer button:disabled { background: var(--chip-bg); color: var(--muted); cursor: default; }
 
   label { display: block; font-weight: 600; font-size: 13px; margin: 14px 0 6px; }
   label:first-of-type { margin-top: 0; }
@@ -99,9 +172,30 @@
   button.primary:disabled { background: var(--accent-disabled); cursor: default; }
   .hint { color: var(--muted); font-size: 12px; margin-top: 10px; }
 
-  #status { display: none; margin-top: 14px; padding: 10px 12px; border-radius: 8px;
-    background: var(--accent-soft); color: var(--accent-ink); font-size: 13px; }
+  #status { display: none; margin-top: 14px; padding: 12px; border-radius: 8px;
+    background: var(--accent-soft); color: var(--accent-ink); font-size: 12.5px; }
   #status.on { display: block; }
+  .status-top { display: flex; justify-content: space-between; gap: 10px;
+    font-weight: 600; margin-bottom: 8px; }
+  #status-stage::before {
+    content: ""; display: inline-block; width: 7px; height: 7px;
+    border-radius: 50%; background: var(--accent); margin-right: 7px;
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+  #status-elapsed { font-family: var(--mono); font-weight: 400; white-space: nowrap; }
+  .pbar { height: 6px; border-radius: 999px; background: var(--chip-bg); overflow: hidden; }
+  .pbar-fill { height: 100%; width: 0%; background: var(--accent); transition: width .3s; }
+  .judge-dots { display: none; gap: 4px; margin-top: 8px; }
+  .judge-dots.on { display: flex; }
+  .jdot { flex: 1; text-align: center; font-family: var(--mono); font-size: 10px;
+    padding: 2px 0; border-radius: 4px; background: var(--chip-bg);
+    color: var(--muted); opacity: .55; }
+  .jdot.applied { background: var(--accent); color: #fff; opacity: 1; }
+  .jdot.skipped { color: var(--skip); text-decoration: line-through; opacity: 1; }
+  .stage-log { list-style: none; margin: 8px 0 0; padding: 0;
+    display: flex; flex-direction: column; gap: 3px; }
+  .stage-log li { color: var(--accent-ink); }
   #error { display: none; margin-top: 14px; padding: 10px 12px; border-radius: 8px;
     background: var(--warn-bg); color: var(--warn); font-size: 13px; white-space: pre-wrap; }
   #error.on { display: block; }
@@ -185,6 +279,15 @@
 </header>
 
 <main>
+  <div class="left-col">
+  <div class="panel" id="run-summary">
+    <button type="button" id="toggle-form" title="Show the use-case form to edit and re-run">
+      <span class="rs-label">Use case</span>
+      <span class="rs-text" id="rs-text"></span>
+      <span class="rs-chevron" id="rs-chevron">▾</span>
+    </button>
+    <button type="button" id="start-over" title="Clear everything and start a new optimization">↺ Start over</button>
+  </div>
   <form class="panel" id="form">
     <label for="use-case">Use case</label>
     <textarea id="use-case" required
@@ -195,9 +298,28 @@
 
     <button class="primary" id="go" type="submit">Optimize</button>
     <div class="hint">Runs a multi-agent pipeline (analyzer &rarr; 8 technique judges in parallel &rarr; writer &rarr; critic). Typically 20&ndash;60&nbsp;s.</div>
-    <div id="status"></div>
+    <div id="status">
+      <div class="status-top">
+        <span id="status-stage"></span>
+        <span id="status-elapsed"></span>
+      </div>
+      <div class="pbar"><div class="pbar-fill" id="pbar-fill"></div></div>
+      <div class="judge-dots" id="judge-dots"></div>
+      <ul class="stage-log" id="stage-log"></ul>
+    </div>
     <div id="error"></div>
   </form>
+
+  <div class="panel" id="chat-panel">
+    <div class="row-title">Chat about the result</div>
+    <div id="chat-messages"></div>
+    <form id="chat-form" class="composer">
+      <textarea id="chat-input" rows="1"
+        placeholder="Ask about the result, or request a change"></textarea>
+      <button id="chat-send" type="submit" aria-label="Send" disabled>↑</button>
+    </form>
+  </div>
+  </div>
 
   <section>
     <div id="placeholder" class="panel">Results will appear here — the optimized prompt, plus all eight technique verdicts with the judge's reasoning.</div>
@@ -290,6 +412,230 @@
     .catch(() => {});
 
   let timer = null;
+  const prog = { done: 0, planned: 11 };
+  let currentResult = null;
+  let lastRun = null;
+  let chatHistory = [];
+
+  function scrollRowToTop(msgEl) {
+    const box = $("chat-messages");
+    const row = msgEl.closest(".chat-row") || msgEl;
+    box.scrollTop +=
+      row.getBoundingClientRect().top - box.getBoundingClientRect().top - 4;
+  }
+
+  function addBubble(role, text) {
+    const row = document.createElement("div");
+    row.className = `chat-row ${role}`;
+    if (role === "assistant") {
+      const avatar = document.createElement("div");
+      avatar.className = "chat-avatar";
+      avatar.textContent = "✦";
+      row.appendChild(avatar);
+    }
+    const msg = document.createElement("div");
+    msg.className = `chat-msg ${role}`;
+    msg.textContent = text;
+    row.appendChild(msg);
+    $("chat-messages").appendChild(row);
+    $("chat-messages").scrollTop = $("chat-messages").scrollHeight;
+    return msg;
+  }
+
+  async function sendChat() {
+    const text = $("chat-input").value.trim();
+    if (!text || !currentResult) return;
+    $("chat-input").value = "";
+    $("chat-input").style.height = "auto";
+    chatHistory.push({ role: "user", content: text });
+    addBubble("user", text);
+    const pending = addBubble("assistant", "");
+    pending.innerHTML =
+      '<span class="typing"><span></span><span></span><span></span></span>';
+    $("chat-send").disabled = true;
+    try {
+      const res = await fetch("/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          use_case: lastRun.use_case,
+          existing_prompt: lastRun.existing_prompt,
+          result: currentResult,
+          messages: chatHistory,
+        }),
+      });
+      if (!res.ok) {
+        let detail = res.statusText;
+        try { detail = (await res.json()).detail ?? detail; } catch {}
+        throw new Error(`HTTP ${res.status}: ${typeof detail === "string" ? detail : JSON.stringify(detail)}`);
+      }
+      const data = await res.json();
+      chatHistory.push({ role: "assistant", content: data.reply });
+      pending.textContent = data.reply;
+      scrollRowToTop(pending);
+      if (data.updated_prompt) {
+        currentResult.optimized_prompt = data.updated_prompt;
+        $("optimized").textContent = data.updated_prompt;
+        if (!document.getElementById("edited-badge")) {
+          const b = document.createElement("span");
+          b.className = "badge neutral";
+          b.id = "edited-badge";
+          b.title = "The prompt was modified in chat after the critic's last check.";
+          b.textContent = "edited in chat";
+          $("badges").appendChild(b);
+        }
+        selectTab("tab-prompt");
+      }
+    } catch (e) {
+      pending.classList.add("chat-error");
+      pending.textContent = e.message || String(e);
+      scrollRowToTop(pending);
+    } finally {
+      $("chat-send").disabled = !$("chat-input").value.trim();
+      $("chat-input").focus();
+    }
+  }
+
+  $("chat-form").addEventListener("submit", (ev) => {
+    ev.preventDefault();
+    sendChat();
+  });
+  $("chat-input").addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter" && !ev.shiftKey) {
+      ev.preventDefault();
+      sendChat();
+    }
+  });
+  $("chat-input").addEventListener("input", () => {
+    const el = $("chat-input");
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 120) + "px";
+    $("chat-send").disabled = !el.value.trim();
+  });
+  $("toggle-form").addEventListener("click", () => {
+    const hidden = $("form").style.display === "none";
+    $("form").style.display = hidden ? "" : "none";
+    $("rs-chevron").style.transform = hidden ? "rotate(180deg)" : "";
+  });
+
+  $("start-over").addEventListener("click", () => {
+    if ($("go").disabled) return; // a run is in flight
+    currentResult = null;
+    lastRun = null;
+    chatHistory = [];
+    $("chat-messages").innerHTML = "";
+    $("chat-panel").classList.remove("on");
+    $("chat-input").value = "";
+    $("chat-send").disabled = true;
+    $("run-summary").classList.remove("on");
+    $("form").style.display = "";
+    $("use-case").value = "";
+    $("existing-prompt").value = "";
+    $("error").classList.remove("on");
+    const col = document.querySelector(".left-col");
+    col.classList.remove("chat-mode");
+    col.style.top = "";
+    col.style.height = "";
+    document.querySelector("main").classList.remove("chat-active");
+    $("results").classList.remove("on");
+    $("placeholder").style.display = "";
+    $("use-case").focus();
+  });
+
+  // Pin the chat column just below the sticky header, using its real height
+  // (it can wrap on narrow windows), and keep it sized to the viewport.
+  function layoutChatColumn() {
+    const col = document.querySelector(".left-col");
+    if (!col.classList.contains("chat-mode")) return;
+    if (window.innerWidth <= 900) {
+      col.style.top = "";
+      col.style.height = "";
+      return;
+    }
+    const headerH = document.querySelector("header").offsetHeight;
+    col.style.top = `${headerH + 16}px`;
+    col.style.height = `calc(100vh - ${headerH + 16 + 24}px)`;
+  }
+  window.addEventListener("resize", layoutChatColumn);
+
+  function resetProgress() {
+    prog.done = 0;
+    prog.planned = 11; // analyzer + 8 judges + writer + critic
+    $("pbar-fill").style.width = "0%";
+    $("stage-log").innerHTML = "";
+    $("status-stage").textContent = "Starting";
+    $("status-elapsed").textContent = "0s";
+    $("judge-dots").classList.remove("on");
+    $("judge-dots").innerHTML = ["01","02","03","04","05","06","07","08"]
+      .map((id) => `<span class="jdot" id="jdot-${id}">${id}</span>`).join("");
+  }
+
+  function bumpProgress() {
+    prog.done += 1;
+    $("pbar-fill").style.width =
+      Math.min(100, Math.round((100 * prog.done) / prog.planned)) + "%";
+  }
+
+  function logStage(text) {
+    const li = document.createElement("li");
+    li.textContent = text;
+    $("stage-log").appendChild(li);
+  }
+
+  function handleEvent(evt) {
+    if (evt.event === "judge_done") {
+      bumpProgress();
+      const dot = $("jdot-" + evt.technique_id);
+      if (dot) {
+        dot.classList.add(evt.relevant ? "applied" : "skipped");
+        dot.title = `#${evt.technique_id} ${evt.name} — ` +
+          (evt.relevant ? `applied (P${evt.priority})` : "skipped");
+      }
+      $("status-stage").textContent =
+        `Technique judges — ${evt.done}/${evt.total} verdicts in`;
+      return;
+    }
+    if (evt.event !== "stage") return;
+    const running = evt.status === "running";
+    if (evt.stage === "analyzer") {
+      if (running) {
+        $("status-stage").textContent = "Analyzer — classifying the use case";
+      } else {
+        bumpProgress();
+        logStage(`✓ Analyzer: ${evt.task_type}`);
+      }
+    } else if (evt.stage === "judges") {
+      if (running) {
+        $("judge-dots").classList.add("on");
+        $("status-stage").textContent =
+          `Technique judges — 0/${evt.total} verdicts in`;
+      } else {
+        logStage(`✓ Judges: ${evt.applied}/8 techniques deemed relevant`);
+      }
+    } else if (evt.stage === "writer") {
+      if (running) {
+        $("status-stage").textContent = evt.draft > 1
+          ? `Writer — revising (draft ${evt.draft})`
+          : "Writer — weaving the techniques into one prompt";
+      } else {
+        bumpProgress();
+        logStage(`✓ Writer: draft ${evt.draft} complete`);
+      }
+    } else if (evt.stage === "critic") {
+      if (running) {
+        $("status-stage").textContent =
+          `Critic — verifying every technique is realized (round ${evt.round})`;
+      } else {
+        bumpProgress();
+        if (evt.approved) {
+          logStage(`✓ Critic: approved (round ${evt.round})`);
+        } else {
+          prog.planned += 2; // a revision adds one writer + one critic call
+          logStage(`✗ Critic: rejected draft ${evt.round} — revising`);
+        }
+      }
+    }
+  }
 
   $("form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -299,15 +645,17 @@
 
     $("go").disabled = true;
     $("error").classList.remove("on");
+    lastRun = { use_case: useCase, existing_prompt: existing || null };
+    resetProgress();
     $("status").classList.add("on");
     const t0 = Date.now();
     timer = setInterval(() => {
-      $("status").textContent =
-        `Optimizing… ${Math.round((Date.now() - t0) / 1000)}s — analyzer, 8 judges, writer, critic`;
+      $("status-elapsed").textContent =
+        `${Math.round((Date.now() - t0) / 1000)}s`;
     }, 250);
 
     try {
-      const res = await fetch("/optimize", {
+      const res = await fetch("/optimize/stream", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ use_case: useCase, existing_prompt: existing || null }),
@@ -317,7 +665,28 @@
         try { detail = (await res.json()).detail ?? detail; } catch {}
         throw new Error(`HTTP ${res.status}: ${typeof detail === "string" ? detail : JSON.stringify(detail)}`);
       }
-      render(await res.json());
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let finalData = null;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let nl;
+        while ((nl = buf.indexOf("\n")) >= 0) {
+          const line = buf.slice(0, nl).trim();
+          buf = buf.slice(nl + 1);
+          if (!line) continue;
+          const evt = JSON.parse(line);
+          if (evt.event === "result") finalData = evt.data;
+          else if (evt.event === "error") throw new Error(evt.detail);
+          else handleEvent(evt);
+        }
+      }
+      if (!finalData) throw new Error("stream ended without a result");
+      $("pbar-fill").style.width = "100%";
+      render(finalData);
     } catch (e) {
       $("error").textContent = e.message || String(e);
       $("error").classList.add("on");
@@ -347,6 +716,20 @@
     $("placeholder").style.display = "none";
     $("results").classList.add("on");
     selectTab("tab-prompt");
+
+    currentResult = data;
+    chatHistory = [];
+    $("chat-messages").innerHTML = "";
+    $("chat-panel").classList.add("on");
+
+    $("form").style.display = "none";
+    $("rs-text").textContent = lastRun.use_case;
+    $("rs-chevron").style.transform = "";
+    $("run-summary").classList.add("on");
+    document.querySelector(".left-col").classList.add("chat-mode");
+    document.querySelector("main").classList.add("chat-active");
+    layoutChatColumn();
+    $("chat-input").focus();
 
     const appliedCount = (data.techniques || []).filter((t) => t.relevant).length;
     document.querySelector('[data-tab="tab-techniques"]').textContent =

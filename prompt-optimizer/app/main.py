@@ -5,17 +5,21 @@ importing this module requires no API key; tests inject a ready-made
 optimizer into create_app() instead.
 """
 
+import asyncio
+import json
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 
 STATIC_DIR = Path(__file__).parent / "static"
 
 from app.config import get_settings
 from app.llm import LLM, LLMError
-from app.models import OptimizeRequest, OptimizeResponse
+from app.models import ChatReply, ChatRequest, OptimizeRequest, OptimizeResponse
 from app.pipeline import PromptOptimizer
 
 
@@ -47,6 +51,44 @@ def create_app(optimizer: PromptOptimizer | None = None) -> FastAPI:
     async def optimize(req: OptimizeRequest) -> OptimizeResponse:
         try:
             return await app.state.optimizer.optimize(req)
+        except LLMError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    @app.post("/optimize/stream")
+    async def optimize_stream(req: OptimizeRequest) -> StreamingResponse:
+        """NDJSON stream: one progress event per line, then a final
+        {"event": "result"} (or {"event": "error"}) line."""
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
+        async def progress(event: dict[str, Any]) -> None:
+            await queue.put(event)
+
+        async def run() -> None:
+            try:
+                result = await app.state.optimizer.optimize(req, progress=progress)
+                await queue.put({"event": "result", "data": result.model_dump()})
+            except LLMError as exc:
+                await queue.put({"event": "error", "detail": str(exc)})
+            except Exception as exc:
+                await queue.put({"event": "error", "detail": f"internal error: {exc}"})
+            finally:
+                await queue.put(None)
+
+        async def lines() -> AsyncIterator[str]:
+            task = asyncio.create_task(run())
+            try:
+                while (event := await queue.get()) is not None:
+                    yield json.dumps(event) + "\n"
+                await task
+            finally:
+                task.cancel()
+
+        return StreamingResponse(lines(), media_type="application/x-ndjson")
+
+    @app.post("/chat", response_model=ChatReply)
+    async def chat(req: ChatRequest) -> ChatReply:
+        try:
+            return await app.state.optimizer.chat(req)
         except LLMError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
