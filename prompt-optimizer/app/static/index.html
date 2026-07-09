@@ -13,45 +13,51 @@
 <style>
   :root {
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    /* "Monochrome ink" — achromatic chrome; the only chroma on the page is
+       semantic: green = applied/approved, red = rejected/error. */
     /* dark theme (default) */
     color-scheme: dark;
-    --bg: #131316;
-    --panel: #1c1c21;
-    --ink: #e9e9ec;
-    --muted: #9b9ba6;
-    --line: #2d2d35;
-    --accent: #5b73ff;
-    --accent-hover: #7286ff;
-    --accent-ink: #a3b1ff;
-    --accent-soft: #242b4e;
-    --accent-disabled: #363f70;
-    --good: #4ecb8d;
-    --good-bg: #16301f;
-    --warn: #e08a4f;
-    --warn-bg: #37231a;
-    --skip: #71717b;
-    --field: #17171c;
-    --chip-bg: #27272f;
+    --bg: #141416;
+    --panel: #1d1d20;
+    --ink: #e8e8ea;
+    --muted: #9a9aa2;
+    --line: #2e2e33;
+    --accent: #e8e8ea;
+    --accent-hover: #ffffff;
+    --accent-ink: #c9c9cf;
+    --accent-soft: #232327;
+    --accent-contrast: #141416;
+    --accent-disabled: #55555c;
+    --good: #3fbf7f;
+    --good-bg: #16281e;
+    --good-contrast: #0c1f14;
+    --warn: #e05252;
+    --warn-bg: #381d1d;
+    --skip: #6a6a72;
+    --field: #18181b;
+    --chip-bg: #27272b;
   }
   [data-theme="light"] {
     color-scheme: light;
-    --bg: #f7f7f5;
+    --bg: #fafaf9;
     --panel: #ffffff;
     --ink: #1a1a1e;
-    --muted: #6b6b76;
-    --line: #e4e4e0;
-    --accent: #3d5afe;
-    --accent-hover: #2a3eb1;
-    --accent-ink: #2a3eb1;
-    --accent-soft: #eef1ff;
-    --accent-disabled: #b9c3f8;
-    --good: #1e8e5a;
-    --good-bg: #e6f4ec;
-    --warn: #b3541e;
-    --warn-bg: #fdeee2;
-    --skip: #a0a0a8;
+    --muted: #6f6f78;
+    --line: #e2e2df;
+    --accent: #1a1a1e;
+    --accent-hover: #000000;
+    --accent-ink: #3a3a40;
+    --accent-soft: #efefed;
+    --accent-contrast: #ffffff;
+    --accent-disabled: #b9b9be;
+    --good: #1e7a4d;
+    --good-bg: #e3f0e8;
+    --good-contrast: #ffffff;
+    --warn: #c03535;
+    --warn-bg: #fbe9e9;
+    --skip: #a4a4aa;
     --field: #fcfcfb;
-    --chip-bg: #ededea;
+    --chip-bg: #ededeb;
   }
   * { box-sizing: border-box; }
   body {
@@ -133,7 +139,7 @@
     display: flex; align-items: center; justify-content: center; }
   .chat-msg { font-size: 13.5px; line-height: 1.55; white-space: pre-wrap;
     word-break: break-word; }
-  .chat-msg.user { background: var(--accent); color: #fff; padding: 9px 14px;
+  .chat-msg.user { background: var(--accent); color: var(--accent-contrast); padding: 9px 14px;
     border-radius: 18px; border-bottom-right-radius: 5px; max-width: 85%; }
   .chat-msg.assistant { color: var(--ink); padding: 3px 0; }
   .chat-msg.chat-error { color: var(--warn); }
@@ -157,7 +163,7 @@
     line-height: 1.5; }
   .composer textarea:focus { outline: none; }
   .composer button { flex: 0 0 34px; height: 34px; border-radius: 50%;
-    border: 0; background: var(--accent); color: #fff; font-size: 16px;
+    border: 0; background: var(--accent); color: var(--accent-contrast); font-size: 16px;
     cursor: pointer; display: flex; align-items: center; justify-content: center; }
   .composer button:hover:not(:disabled) { background: var(--accent-hover); }
   .composer button:disabled { background: var(--chip-bg); color: var(--muted); cursor: default; }
@@ -175,7 +181,7 @@
 
   button.primary {
     margin-top: 16px; width: 100%; padding: 11px; border: 0; border-radius: 8px;
-    background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+    background: var(--accent); color: var(--accent-contrast); font-size: 15px; font-weight: 600; cursor: pointer;
   }
   button.primary:hover { background: var(--accent-hover); }
   button.primary:disabled { background: var(--accent-disabled); cursor: default; }
@@ -200,11 +206,13 @@
   .jdot { flex: 1; text-align: center; font-family: var(--mono); font-size: 10px;
     padding: 2px 0; border-radius: 4px; background: var(--chip-bg);
     color: var(--muted); opacity: .55; }
-  .jdot.applied { background: var(--accent); color: #fff; opacity: 1; }
+  .jdot.applied { background: var(--good); color: var(--good-contrast); opacity: 1; }
   .jdot.skipped { color: var(--skip); text-decoration: line-through; opacity: 1; }
   .stage-log { list-style: none; margin: 8px 0 0; padding: 0;
     display: flex; flex-direction: column; gap: 3px; }
   .stage-log li { color: var(--accent-ink); }
+  .stage-log li.ok { color: var(--good); }
+  .stage-log li.rej { color: var(--warn); }
   #error { display: none; margin-top: 14px; padding: 10px 12px; border-radius: 8px;
     background: var(--warn-bg); color: var(--warn); font-size: 13px; white-space: pre-wrap; }
   #error.on { display: block; }
@@ -250,7 +258,7 @@
   .tech {
     border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--field);
   }
-  .tech.applied { border-left: 3px solid var(--accent); background: var(--panel); }
+  .tech.applied { border-left: 3px solid var(--good); background: var(--panel); }
   .tech.skipped { opacity: 0.62; }
   .tech .tag-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .tech .tid { font-family: var(--mono); font-size: 12px; color: var(--muted); }
@@ -611,8 +619,9 @@
       Math.min(100, Math.round((100 * prog.done) / prog.planned)) + "%";
   }
 
-  function logStage(text) {
+  function logStage(text, cls) {
     const li = document.createElement("li");
+    if (cls) li.className = cls;
     li.textContent = text;
     $("stage-log").appendChild(li);
   }
@@ -664,10 +673,10 @@
       } else {
         bumpProgress();
         if (evt.approved) {
-          logStage(`✓ Critic: draft ${evt.round} approved`);
+          logStage(`✓ Critic: draft ${evt.round} approved`, "ok");
         } else {
           prog.planned += 2; // a revision adds one writer + one critic call
-          logStage(`✗ Critic: rejected draft ${evt.round} — revising`);
+          logStage(`✗ Critic: rejected draft ${evt.round} — revising`, "rej");
         }
       }
     }
