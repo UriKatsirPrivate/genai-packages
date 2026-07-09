@@ -132,6 +132,10 @@
     border-radius: 18px; border-bottom-right-radius: 5px; max-width: 85%; }
   .chat-msg.assistant { color: var(--ink); padding: 3px 0; }
   .chat-msg.chat-error { color: var(--warn); }
+  .chat-code { margin: 8px 0; padding: 10px 12px; background: var(--field);
+    border: 1px solid var(--line); border-radius: 8px;
+    font: 12px/1.5 var(--mono); white-space: pre-wrap; word-break: break-word;
+    overflow-x: auto; }
   .typing { display: inline-flex; gap: 4px; padding: 6px 0; }
   .typing span { width: 7px; height: 7px; border-radius: 50%;
     background: var(--muted); animation: blink 1.2s infinite; }
@@ -417,6 +421,28 @@
   let lastRun = null;
   let chatHistory = [];
 
+  function setAssistantContent(el, text) {
+    el.innerHTML = "";
+    const fence = /```[\w-]*\n?([\s\S]*?)```/g;
+    let last = 0, m;
+    const addText = (t) => {
+      t = t.replace(/^\n+|\n+$/g, "");
+      if (!t) return;
+      const span = document.createElement("span");
+      span.textContent = t;
+      el.appendChild(span);
+    };
+    while ((m = fence.exec(text)) !== null) {
+      addText(text.slice(last, m.index));
+      const pre = document.createElement("pre");
+      pre.className = "chat-code";
+      pre.textContent = m[1].trim();
+      el.appendChild(pre);
+      last = fence.lastIndex;
+    }
+    addText(text.slice(last));
+  }
+
   function scrollRowToTop(msgEl) {
     const box = $("chat-messages");
     const row = msgEl.closest(".chat-row") || msgEl;
@@ -471,7 +497,7 @@
       }
       const data = await res.json();
       chatHistory.push({ role: "assistant", content: data.reply });
-      pending.textContent = data.reply;
+      setAssistantContent(pending, data.reply);
       scrollRowToTop(pending);
       if (data.updated_prompt) {
         currentResult.optimized_prompt = data.updated_prompt;

@@ -89,29 +89,63 @@ that realizes every selected technique, grounded in how LLMs actually work: \
 weights remember vaguely, context remembers exactly; every token gets a \
 fixed budget of thought.
 
+Every selected technique's obligation below is MANDATORY. An application \
+note adds task-specific detail but never removes an obligation. Never let \
+one technique's wording cancel another's — a brevity demand must not \
+suppress step-by-step working, and pasted context must not replace the \
+search-tool instruction.
+
 Hard requirements for optimized_prompt:
 - Structure it in clearly delimited sections.
-- If technique 01 is selected: include a delimited context slot containing \
-the placeholder {{SOURCE_TEXT}} and instruct the model to answer ONLY from \
-that text.
-- If 02 or 03: require step-by-step working with intermediate results \
-written out, and put the final answer LAST in a clearly marked section — \
-never first.
-- If 04 or 05: explicitly instruct the model to use code for math / for any \
-character-level operation, never mental arithmetic or inspection.
-- If 06: explicitly permit answering "I don't know" when the answer is not \
-in the provided material, and note that a search/grounding tool is \
-recommended.
+- If 01: include a clearly delimited context slot for EVERY source the task \
+needs, each containing an UPPERCASE {{PLACEHOLDER}} (e.g. {{SOURCE_TEXT}}), \
+plus an explicit instruction to answer ONLY from that material and never \
+from memory.
+- If 02: REQUIRE intermediate results to be written out step by step — \
+reasoning must be demanded, not merely permitted, and the demand must be \
+UNCONDITIONAL (a gate the model judges itself, like "if complex", counts \
+as merely permitted). Never pair it with an answer-only or keep-it-brief \
+demand, or any format, schema, or length constraint that leaves no room \
+for the working; the output format itself must contain an explicit \
+working/intermediate-results section.
+- If 03: every output format the prompt defines — global AND per-item — \
+must place the final answer/verdict in a clearly marked section AFTER the \
+working. Never first, never alone.
+- If 04: all arithmetic and numeric results MUST be computed by writing and \
+running code — mental arithmetic explicitly forbidden. The prompt text \
+itself must carry BOTH the write-and-run-code instruction AND an in-prompt \
+fallback clause requiring explicit digit-by-digit written working when no \
+code tool is available. "Show your calculation" alone does not satisfy \
+this.
+- If 05: any character-level operation (spelling, counting characters or \
+words, slicing, per-character validation) MUST be routed to code that is \
+written AND run — describing code without executing it does not count, and \
+inspection never does: the tokenizer hides characters from the model.
+- If 06: two obligations, BOTH mandatory. (a) Explicitly permit answering \
+"I don't know" when the answer is not in the provided material — never \
+guess. (b) Include an explicit grounding instruction addressed to the \
+model: if a web-search or retrieval tool is available, USE it to pull the \
+relevant source text into context and cite what it finds; fall back to \
+"I don't know" only when neither the provided material nor a tool can \
+supply the fact. Do not drop (b) because source text is pasted in — pasted \
+material realizes technique 01, not the search half of 06.
 - If 07: include 2-4 concrete, fully written input->output examples matching \
-the real task. One of them MUST show an ambiguous or unanswerable input \
-answered with an explicit refusal — "I don't know", "cannot determine", or a \
-refusal adapted to the task's output format (e.g. an "Undetermined" label \
-for classification) — because in-context learning copies restraint, not \
-just format. Omit the refusal example ONLY if it would be outright \
-nonsensical for this task; when in doubt, include it. When the profile says \
-refusal_matters, it is never optional.
-- If 08: end with a self-verification step (re-check the answer against the \
-source and requirements before finishing).
+the real task — no placeholders or ellipses, each following the exact \
+output format the prompt itself defines. One of them MUST show an ambiguous \
+or unanswerable input answered with an explicit refusal — "I don't know", \
+"cannot determine", or a refusal adapted to the task's output format (e.g. \
+an "Undetermined" label for classification) — because in-context learning \
+copies restraint, not just format. Omit the refusal example ONLY if it \
+would be outright nonsensical for this task; when in doubt, include it. \
+When the profile says refusal_matters, it is never optional.
+- If 08: end with a CONCRETE self-verification step that names what to \
+re-check, covering the risk surfaces of the other selected techniques \
+(answer vs. source when 01 is selected, calculations recomputed when 04/05 \
+are, requirements met otherwise), before the final answer is finalized — a \
+generic "double-check your work" line is not enough. When the use case is \
+high-stakes (production, money, health, legal, published output), also \
+include an explicit human-verification note: the output must be reviewed \
+by a human before it is acted on.
 - Weave the techniques into one coherent prompt — no redundancy, no \
 bolted-on checklist.
 
@@ -133,16 +167,58 @@ Produce exactly one check per selected technique: point to where in the \
 prompt text the technique is actually realized, or state that it is missing \
 or only nominally present. A technique counts as realized only if the prompt \
 text itself would cause the intended behavior — a vague mention is not \
-enough. Verify the specifics: technique 01 needs a delimited {{SOURCE_TEXT}} \
-slot with an answer-only-from-it instruction; 02/03 need visible working with \
-the final answer last; 04/05 need explicit use-code instructions; 06 needs \
-explicit permission to say "I don't know" AND a note recommending a \
-search/grounding tool; 07 needs fully written input->output examples INCLUDING one where an \
+enough. Check each technique independently: text that satisfies one \
+obligation does not automatically satisfy another.
+
+Verify the specifics, and reject when any of them fail:
+- 01 needs a clearly delimited context slot with an explicit {{PLACEHOLDER}} \
+for each required source AND an answer-only-from-this-material instruction; \
+reject if either is missing, and reject if any other instruction in the \
+prompt re-licenses answering from general knowledge or memory when the \
+material is silent.
+- 02 needs an explicit, UNCONDITIONAL instruction to work step by step and \
+write each intermediate result before moving on. Reasoning merely permitted, \
+gated on the model's own judgment ("if complex", "when non-trivial"), or \
+contradicted by an answer-only/brevity demand or any format, schema, or \
+length constraint that leaves no room for the working — each is a \
+rejection. A working section required only by the output format does not \
+by itself satisfy 02.
+- 03 needs the final answer/verdict marked, placed LAST, and preceded by the \
+required working in every output format the prompt defines, including \
+per-item formats; any format that leads with the verdict, or consists of \
+the verdict alone, is a rejection.
+- 04 needs the prompt text itself to carry BOTH an explicit instruction to \
+compute all numeric work by writing and RUNNING code AND an in-prompt \
+digit-by-digit written fallback clause for when no code tool is available; \
+reject if either clause is absent — an assumed no-code runtime does not excuse \
+the code instruction, and "show your calculation" without code is a rejection.
+- 05 needs character-level operations explicitly routed to code that is \
+written AND run — describing code without executing it does not count; \
+leaving spelling/counting to inspection is a rejection.
+- 06 has TWO required halves — (a) explicit permission to say "I don't \
+know" and (b) an explicit instruction to use a web-search/retrieval tool \
+when one is available — and you must reject the draft if either half is \
+missing (pasted source material does NOT substitute for the search-tool \
+instruction). Half (b) must REQUIRE tool use when a tool is available — \
+"you may search" / "consider searching" softeners are a rejection. Reject \
+half (a) when the refusal permission is contradicted elsewhere: an \
+always-answer demand, or a closed output label set with no refusal option.
+- 07 needs 2-4 fully written input->output examples (no placeholders or \
+ellipses, matching the prompt's own output format AND drawn from the actual \
+task domain — off-task or toy examples are a rejection), at least one being \
+a normal non-refusal demonstration of the pattern, INCLUDING one where an \
 ambiguous or unanswerable input is met with an explicit refusal — "I don't \
 know", "cannot determine", or a refusal adapted to the output format (e.g. \
 an "Undetermined" label) — and you must reject its absence unless a refusal \
 example would be outright nonsensical for this task (when in doubt, require \
-it); 08 needs a final self-verification step.
+it). When the profile says refusal_matters, the nonsensical exception does \
+not apply — a missing refusal example is always a rejection.
+- 08 needs a concrete final self-verification step whose named checks cover \
+the risk surfaces of the selected techniques (source fidelity when 01 is \
+selected, recomputed numbers when 04/05 are, requirements coverage \
+otherwise) — a generic "double-check your work" line is a rejection. When \
+the use case is high-stakes, 08 also needs an explicit human-verification \
+note; self-verification alone does not satisfy it there.
 
 Set approved=true only if every check is realized. When rejecting, write \
 feedback as concrete rewrite instructions — what to add, where, and in what \
@@ -168,8 +244,24 @@ to drop one; if the request weakens a technique, comply where sensible but \
 say so in reply, citing the technique number.
 
 Set updated_prompt ONLY when the user asked for a modification; otherwise \
-leave it null. Keep reply concise plain text (no markdown headers), and \
-when you changed the prompt, summarize what changed in reply.\
+leave it null. Keep reply concise (no markdown headers), and when you \
+changed the prompt, summarize what changed in reply.
+
+Code rules for reply: when the user asks for code, reply MUST contain the \
+complete, runnable code inside ``` fences — never announce code without \
+including it. Code samples default to Python with the google-genai SDK for \
+Gemini unless the user explicitly names another provider or language. \
+Canonical Gemini call (current SDK — do not use the legacy \
+google-generativeai package):
+
+    from google import genai
+
+    client = genai.Client()  # reads GEMINI_API_KEY; GOOGLE_GENAI_USE_VERTEXAI=true for Vertex
+    resp = client.models.generate_content(
+        model="gemini-3.5-flash",
+        contents=filled_prompt,
+    )
+    print(resp.text)\
 """
 
 

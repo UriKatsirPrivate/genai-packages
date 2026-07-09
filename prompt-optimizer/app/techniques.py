@@ -151,9 +151,10 @@ TECHNIQUES: tuple[Technique, ...] = (
             "confident wrong answer is costly."
         ),
         apply_hint=(
-            "Add an explicit permission/instruction to answer 'I don't know' "
-            "when the answer isn't in the provided context or search "
-            "results, and recommend enabling a search/grounding tool."
+            "Add an explicit permission to answer 'I don't know' when the "
+            "answer isn't in the provided context or search results, AND an "
+            "instruction to use a web-search/retrieval tool when one is "
+            "available to pull real source text into working memory."
         ),
     ),
     Technique(
