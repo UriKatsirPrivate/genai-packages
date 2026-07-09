@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prompt Optimizer — prompting from first principles</title>
+<script>
+  /* restore saved theme before first paint; dark is the default */
+  if (localStorage.getItem("theme") === "light")
+    document.documentElement.dataset.theme = "light";
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9C%8D%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    /* dark theme (default) */
+    color-scheme: dark;
+    --bg: #131316;
+    --panel: #1c1c21;
+    --ink: #e9e9ec;
+    --muted: #9b9ba6;
+    --line: #2d2d35;
+    --accent: #5b73ff;
+    --accent-hover: #7286ff;
+    --accent-ink: #a3b1ff;
+    --accent-soft: #242b4e;
+    --accent-disabled: #363f70;
+    --good: #4ecb8d;
+    --good-bg: #16301f;
+    --warn: #e08a4f;
+    --warn-bg: #37231a;
+    --skip: #71717b;
+    --field: #17171c;
+    --chip-bg: #27272f;
+  }
+  [data-theme="light"] {
+    color-scheme: light;
+    --bg: #f7f7f5;
+    --panel: #ffffff;
+    --ink: #1a1a1e;
+    --muted: #6b6b76;
+    --line: #e4e4e0;
+    --accent: #3d5afe;
+    --accent-hover: #2a3eb1;
+    --accent-ink: #2a3eb1;
+    --accent-soft: #eef1ff;
+    --accent-disabled: #b9c3f8;
+    --good: #1e8e5a;
+    --good-bg: #e6f4ec;
+    --warn: #b3541e;
+    --warn-bg: #fdeee2;
+    --skip: #a0a0a8;
+    --field: #fcfcfb;
+    --chip-bg: #ededea;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  header {
+    padding: 20px 28px; border-bottom: 1px solid var(--line); background: var(--panel);
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+  }
+  header h1 { margin: 0; font-size: 19px; letter-spacing: -0.01em; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  header .model { margin-left: auto; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  button.theme-toggle {
+    border: 1px solid var(--line); background: transparent; color: var(--muted);
+    border-radius: 8px; padding: 5px 12px; font-size: 12.5px; cursor: pointer;
+  }
+  button.theme-toggle:hover { color: var(--ink); border-color: var(--muted); }
+
+  main {
+    display: grid; grid-template-columns: minmax(340px, 430px) 1fr;
+    gap: 24px; padding: 24px 28px; max-width: 1400px; margin: 0 auto;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; }
+  form.panel { align-self: start; position: sticky; top: 24px; }
+
+  label { display: block; font-weight: 600; font-size: 13px; margin: 14px 0 6px; }
+  label:first-of-type { margin-top: 0; }
+  label .opt { font-weight: 400; color: var(--muted); }
+  textarea {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+    font: 13px/1.5 var(--mono); resize: vertical; background: var(--field); color: var(--ink);
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+  #use-case { min-height: 120px; }
+  #existing-prompt { min-height: 90px; }
+
+  button.primary {
+    margin-top: 16px; width: 100%; padding: 11px; border: 0; border-radius: 8px;
+    background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  button.primary:hover { background: var(--accent-hover); }
+  button.primary:disabled { background: var(--accent-disabled); cursor: default; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 10px; }
+
+  #status { display: none; margin-top: 14px; padding: 10px 12px; border-radius: 8px;
+    background: var(--accent-soft); color: var(--accent-ink); font-size: 13px; }
+  #status.on { display: block; }
+  #error { display: none; margin-top: 14px; padding: 10px 12px; border-radius: 8px;
+    background: var(--warn-bg); color: var(--warn); font-size: 13px; white-space: pre-wrap; }
+  #error.on { display: block; }
+
+  #results { display: none; flex-direction: column; gap: 20px; }
+  #results.on { display: flex; }
+  #placeholder { color: var(--muted); padding: 60px 20px; text-align: center; }
+
+  .panel h2 { margin: 0 0 10px; font-size: 14px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+  .tab {
+    border: 0; background: transparent; color: var(--muted); font-size: 13px; font-weight: 600;
+    padding: 8px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  }
+  .tab:hover { color: var(--ink); }
+  .tab.active { color: var(--accent-ink); border-bottom-color: var(--accent); }
+  .tabpane { display: none; }
+  .tabpane.active { display: block; }
+
+  .prompt-head { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+  pre#optimized {
+    margin: 0; padding: 14px; background: var(--field); border: 1px solid var(--line); border-radius: 8px;
+    font: 13px/1.6 var(--mono); white-space: pre-wrap; word-break: break-word; overflow: auto;
+  }
+  button.copy {
+    border: 1px solid var(--line); background: var(--panel); border-radius: 6px;
+    padding: 5px 12px; font-size: 12px; cursor: pointer; color: var(--ink);
+  }
+  button.copy:hover { border-color: var(--accent); color: var(--accent-ink); }
+
+  .badges { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge { font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 999px; cursor: help; }
+  .row-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px;
+  }
+  .badge.good { background: var(--good-bg); color: var(--good); }
+  .badge.warn { background: var(--warn-bg); color: var(--warn); }
+  .badge.neutral { background: var(--chip-bg); color: var(--muted); }
+
+  .tech-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .tech {
+    border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; background: var(--field);
+  }
+  .tech.applied { border-left: 3px solid var(--accent); background: var(--panel); }
+  .tech.skipped { opacity: 0.62; }
+  .tech .tag-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .tech .tid { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .tech .tname { font-weight: 600; font-size: 13.5px; flex: 1; }
+  .tech .prio { font-size: 11px; font-weight: 700; color: var(--accent-ink); background: var(--accent-soft);
+    padding: 1px 7px; border-radius: 999px; }
+  .tech .state { font-size: 11px; font-weight: 700; }
+  .tech.applied .state { color: var(--good); }
+  .tech.skipped .state { color: var(--skip); }
+  .tech .reason { font-size: 12.5px; color: var(--muted); }
+  .tech .application { font-size: 12.5px; margin-top: 8px; padding: 8px 10px; border-radius: 6px;
+    background: var(--accent-soft); color: var(--accent-ink); }
+
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { font-size: 12px; padding: 3px 10px; border-radius: 999px; background: var(--chip-bg); color: var(--ink); cursor: help; }
+  .chip.hot { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+  .profile-summary { font-size: 13.5px; color: var(--ink); margin: 0; }
+
+  ul.checks { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+  ul.checks li { font-size: 13px; display: flex; gap: 8px; align-items: baseline; }
+  ul.checks .mark { font-weight: 700; }
+  ul.checks .mark.ok { color: var(--good); }
+  ul.checks .mark.bad { color: var(--warn); }
+  details { font-size: 13px; }
+  details summary { cursor: pointer; font-weight: 600; color: var(--muted); }
+  details p { white-space: pre-wrap; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Prompt Optimizer</h1>
+  <span class="sub">prompting from first principles &middot; eight techniques, applied where they matter</span>
+  <span class="model" id="model-badge"></span>
+  <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme"></button>
+</header>
+
+<main>
+  <form class="panel" id="form">
+    <label for="use-case">Use case</label>
+    <textarea id="use-case" required
+      placeholder="What is the prompt for? e.g. Answer questions about figures in quarterly earnings reports; users paste the report text; wrong numbers are costly."></textarea>
+
+    <label for="existing-prompt">Existing prompt <span class="opt">(optional — will be improved, intent preserved)</span></label>
+    <textarea id="existing-prompt" placeholder="Paste your current prompt, if you have one."></textarea>
+
+    <button class="primary" id="go" type="submit">Optimize</button>
+    <div class="hint">Runs a multi-agent pipeline (analyzer &rarr; 8 technique judges in parallel &rarr; writer &rarr; critic). Typically 20&ndash;60&nbsp;s.</div>
+    <div id="status"></div>
+    <div id="error"></div>
+  </form>
+
+  <section>
+    <div id="placeholder" class="panel">Results will appear here — the optimized prompt, plus all eight technique verdicts with the judge's reasoning.</div>
+
+    <div id="results">
+      <div class="panel">
+        <div class="row-title">Run status</div>
+        <div class="badges" id="badges"></div>
+        <div class="row-title" style="margin-top:16px">Use-case profile</div>
+        <p class="profile-summary" id="profile-summary"></p>
+        <div class="chips" id="profile-chips"></div>
+      </div>
+
+      <div class="panel">
+        <nav class="tabs" role="tablist">
+          <button class="tab active" type="button" data-tab="tab-prompt">Optimized prompt</button>
+          <button class="tab" type="button" data-tab="tab-techniques">Techniques</button>
+          <button class="tab" type="button" data-tab="tab-critic">Critic report</button>
+        </nav>
+
+        <section class="tabpane active" id="tab-prompt">
+          <div class="prompt-head">
+            <button class="copy" id="copy" type="button">Copy</button>
+          </div>
+          <pre id="optimized"></pre>
+        </section>
+
+        <section class="tabpane" id="tab-techniques">
+          <div class="tech-grid" id="tech-grid"></div>
+        </section>
+
+        <section class="tabpane" id="tab-critic">
+          <ul class="checks" id="critic-checks"></ul>
+          <details style="margin-top:12px">
+            <summary>Writer design notes</summary>
+            <p id="design-notes"></p>
+          </details>
+        </section>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  const PROFILE_META = {
+    involves_math: ["math",
+      "The task involves arithmetic or numeric computation — feeds judge #04 (use code for math)."],
+    involves_char_level: ["char-level",
+      "Spelling, counting, or character-level work — feeds judge #05 (use code for perception tasks)."],
+    factual_recall_risk: ["recall risk",
+      "Depends on facts the model would recall from its weights — feeds judge #06 (ground it + allow 'I don't know')."],
+    source_text_available: ["source available",
+      "The user has (or can paste) source text — feeds judge #01 (paste the source)."],
+    pattern_teachable: ["pattern teachable",
+      "Output format or style can be taught with input→output examples — feeds judge #07 (few-shot the pattern)."],
+    reasoning_heavy: ["reasoning-heavy",
+      "Needs multi-step reasoning — feeds judges #02 (tokens to think) and #03 (answer last, not first)."],
+    refusal_matters: ["refusal matters",
+      "A confident wrong answer is costly — adds the 'I don't know' refusal demo to #07."],
+  };
+
+  const BADGE_TIPS = {
+    approved: "The critic verified that every applied technique is actually realized in the final prompt text.",
+    notApproved: "The critic still found unrealized techniques after the revision budget was exhausted — review before using.",
+    revised: "The first draft failed the critic's checks; the writer revised it and the critic re-checked.",
+    applied: "How many of the eight techniques the judges deemed relevant to this use case. Skipping is deliberate — see the Techniques tab for each reason.",
+    model: "The Gemini model that generated this result.",
+    taskType: "Task type detected by the use-case analyzer (stage 1 of the pipeline).",
+  };
+
+  const themeBtn = $("theme-toggle");
+  function syncThemeBtn() {
+    themeBtn.textContent =
+      document.documentElement.dataset.theme === "light" ? "☾ Dark" : "☀ Light";
+  }
+  themeBtn.addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = next;
+    localStorage.setItem("theme", next);
+    syncThemeBtn();
+  });
+  syncThemeBtn();
+
+  fetch("/healthz").then((r) => r.json())
+    .then((h) => { $("model-badge").textContent = h.model || ""; })
+    .catch(() => {});
+
+  let timer = null;
+
+  $("form").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const useCase = $("use-case").value.trim();
+    if (!useCase) return;
+    const existing = $("existing-prompt").value.trim();
+
+    $("go").disabled = true;
+    $("error").classList.remove("on");
+    $("status").classList.add("on");
+    const t0 = Date.now();
+    timer = setInterval(() => {
+      $("status").textContent =
+        `Optimizing… ${Math.round((Date.now() - t0) / 1000)}s — analyzer, 8 judges, writer, critic`;
+    }, 250);
+
+    try {
+      const res = await fetch("/optimize", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ use_case: useCase, existing_prompt: existing || null }),
+      });
+      if (!res.ok) {
+        let detail = res.statusText;
+        try { detail = (await res.json()).detail ?? detail; } catch {}
+        throw new Error(`HTTP ${res.status}: ${typeof detail === "string" ? detail : JSON.stringify(detail)}`);
+      }
+      render(await res.json());
+    } catch (e) {
+      $("error").textContent = e.message || String(e);
+      $("error").classList.add("on");
+    } finally {
+      clearInterval(timer);
+      $("status").classList.remove("on");
+      $("go").disabled = false;
+    }
+  });
+
+  function selectTab(id) {
+    document.querySelectorAll(".tab").forEach((t) =>
+      t.classList.toggle("active", t.dataset.tab === id));
+    document.querySelectorAll(".tabpane").forEach((p) =>
+      p.classList.toggle("active", p.id === id));
+  }
+  document.querySelectorAll(".tab").forEach((t) =>
+    t.addEventListener("click", () => selectTab(t.dataset.tab)));
+
+  $("copy").addEventListener("click", async () => {
+    await navigator.clipboard.writeText($("optimized").textContent);
+    $("copy").textContent = "Copied ✓";
+    setTimeout(() => { $("copy").textContent = "Copy"; }, 1500);
+  });
+
+  function render(data) {
+    $("placeholder").style.display = "none";
+    $("results").classList.add("on");
+    selectTab("tab-prompt");
+
+    const appliedCount = (data.techniques || []).filter((t) => t.relevant).length;
+    document.querySelector('[data-tab="tab-techniques"]').textContent =
+      `Techniques ${appliedCount}/8`;
+    document.querySelector('[data-tab="tab-critic"]').textContent =
+      `Critic report ${data.critic?.approved ? "✓" : "✗"}`;
+
+    $("optimized").textContent = data.optimized_prompt;
+
+    const badges = [];
+    badges.push(data.critic?.approved
+      ? `<span class="badge good" title="${esc(BADGE_TIPS.approved)}">critic approved</span>`
+      : `<span class="badge warn" title="${esc(BADGE_TIPS.notApproved)}">critic not satisfied</span>`);
+    if (data.revised)
+      badges.push(`<span class="badge warn" title="${esc(BADGE_TIPS.revised)}">revised after critique</span>`);
+    badges.push(`<span class="badge neutral" title="${esc(BADGE_TIPS.applied)}">${appliedCount}/8 techniques applied</span>`);
+    if (data.model)
+      badges.push(`<span class="badge neutral" title="${esc(BADGE_TIPS.model)}">${esc(data.model)}</span>`);
+    $("badges").innerHTML = badges.join("");
+
+    $("tech-grid").innerHTML = (data.techniques || []).map((t) => `
+      <div class="tech ${t.relevant ? "applied" : "skipped"}">
+        <div class="tag-row">
+          <span class="tid">#${esc(t.technique_id)}</span>
+          <span class="tname">${esc(t.name)}</span>
+          ${t.relevant ? `<span class="prio">P${esc(t.priority)}</span>` : ""}
+          <span class="state">${t.relevant ? "APPLIED" : "SKIPPED"}</span>
+        </div>
+        <div class="reason">${esc(t.reason)}</div>
+        ${t.relevant && t.application ? `<div class="application">${esc(t.application)}</div>` : ""}
+      </div>`).join("");
+
+    const p = data.use_case_profile || {};
+    $("profile-summary").textContent = p.summary || "";
+    const chips = [`<span class="chip hot" title="${esc(BADGE_TIPS.taskType)}">${esc(p.task_type || "?")}</span>`];
+    for (const [key, [label, tip]] of Object.entries(PROFILE_META)) {
+      if (p[key]) chips.push(`<span class="chip" title="${esc(tip)}">${esc(label)}</span>`);
+    }
+    $("profile-chips").innerHTML = chips.join("");
+
+    $("critic-checks").innerHTML = (data.critic?.checks || []).map((c) => `
+      <li><span class="mark ${c.realized ? "ok" : "bad"}">${c.realized ? "✓" : "✗"}</span>
+        <span><strong>#${esc(c.technique_id)}</strong> — ${esc(c.note)}</span></li>`).join("")
+      || "<li>No checks reported.</li>";
+    $("design-notes").textContent = data.design_notes || "—";
+  }
+</script>
+</body>
+</html>
