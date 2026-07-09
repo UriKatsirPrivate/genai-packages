@@ -1,0 +1,6 @@
+# Build context is the prompt-optimizer/ directory; the Dockerfile lives in deploy/.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ["build", "-t", "${_IMAGE}", "-f", "deploy/Dockerfile", "."]
+images:
+  - "${_IMAGE}"

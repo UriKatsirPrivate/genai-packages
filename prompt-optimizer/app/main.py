@@ -14,6 +14,7 @@ from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -99,6 +100,8 @@ def create_app(optimizer: PromptOptimizer | None = None) -> FastAPI:
     @app.get("/", include_in_schema=False)
     async def index() -> FileResponse:
         return FileResponse(STATIC_DIR / "index.html")
+
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     return app
 

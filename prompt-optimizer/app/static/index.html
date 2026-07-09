@@ -71,6 +71,11 @@
     border-radius: 8px; padding: 5px 12px; font-size: 12.5px; cursor: pointer;
   }
   button.theme-toggle:hover { color: var(--ink); border-color: var(--muted); }
+  header .gh-link { align-self: center; display: flex; }
+  header .gh-link img { height: 24px; width: auto; display: block; opacity: 0.85; }
+  header .gh-link:hover img { opacity: 1; }
+  /* the icon is light-on-dark; flip it for the light theme, keeping the blue border */
+  [data-theme="light"] header .gh-link img { filter: invert(1) hue-rotate(180deg); }
 
   main {
     display: grid; grid-template-columns: minmax(340px, 430px) 1fr;
@@ -279,6 +284,10 @@
   <h1>Prompt Optimizer</h1>
   <span class="sub">prompting from first principles &middot; eight techniques, applied where they matter</span>
   <span class="model" id="model-badge"></span>
+  <a class="gh-link" href="https://github.com/UriKatsirPrivate/genai-packages" target="_blank"
+     rel="noopener" title="View source on GitHub" aria-label="View source on GitHub">
+    <img src="/static/github.png" alt="GitHub">
+  </a>
   <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Switch color theme"></button>
 </header>
 
@@ -649,12 +658,13 @@
       }
     } else if (evt.stage === "critic") {
       if (running) {
-        $("status-stage").textContent =
-          `Critic — verifying every technique is realized (round ${evt.round})`;
+        $("status-stage").textContent = evt.round > 1
+          ? `Critic — re-checking revised draft ${evt.round}`
+          : "Critic — verifying every technique is realized";
       } else {
         bumpProgress();
         if (evt.approved) {
-          logStage(`✓ Critic: approved (round ${evt.round})`);
+          logStage(`✓ Critic: draft ${evt.round} approved`);
         } else {
           prog.planned += 2; // a revision adds one writer + one critic call
           logStage(`✗ Critic: rejected draft ${evt.round} — revising`);
