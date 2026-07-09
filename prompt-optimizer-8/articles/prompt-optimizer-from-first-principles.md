@@ -19,16 +19,14 @@ And one corollary: capabilities are **Swiss cheese** — brilliant across whole 
 
 From these, eight techniques fall out:
 
-| # | Technique | First principle |
-|---|-----------|-----------------|
-| 01 | Paste the source | Weights recall vaguely; context is working memory |
-| 02 | Give it tokens to think | Fixed compute per token — spread reasoning across tokens |
-| 03 | Answer last, not first | Answer-first forces the whole problem into one forward pass |
-| 04 | Use code for math | Mental arithmetic slips silently; the interpreter doesn't |
-| 05 | Use code for perception | The model sees tokens, not characters |
-| 06 | Ground + allow "I don't know" | Hallucination is the default, not a glitch |
-| 07 | Few-shot the pattern (and the refusal) | In-context learning copies behavior, including restraint |
-| 08 | Own the output | Capabilities are Swiss cheese — check the work |
+- **01 — Paste the source:** weights recall vaguely; context is working memory
+- **02 — Give it tokens to think:** fixed compute per token — spread reasoning across tokens
+- **03 — Answer last, not first:** answer-first forces the whole problem into one forward pass
+- **04 — Use code for math:** mental arithmetic slips silently; the interpreter doesn't
+- **05 — Use code for perception:** the model sees tokens, not characters
+- **06 — Ground + allow "I don't know":** hallucination is the default, not a glitch
+- **07 — Few-shot the pattern (and the refusal):** in-context learning copies behavior, including restraint
+- **08 — Own the output:** capabilities are Swiss cheese — check the work
 
 Notice #07's twist: most few-shot advice tells you to demonstrate the *pattern*. But in-context learning copies **behavior**, not just format — so one of your examples should demonstrate the *refusal*. Show the model an unanswerable input met with "I don't know", and it learns restraint along with the format.
 
@@ -95,6 +93,14 @@ My favorite part of building this: the pipeline is **built with the same eight t
 - The critic is the pipeline's own verification pass — technique 08, *own the output*, as an architectural component instead of a human habit.
 
 Prompt engineering advice that can't survive being applied to itself probably isn't advice worth taking.
+
+## 🚀 See It in Action
+
+No setup required — a live instance is running on Cloud Run:
+
+**[https://prompt-optimizer-8-854735162550.me-west1.run.app/](https://prompt-optimizer-8-854735162550.me-west1.run.app/)**
+
+Paste a use case (and optionally your existing prompt), watch the eight judges report in live, and read every verdict — including the techniques the pipeline decided to skip.
 
 ## ☁️ Under the Hood
 
