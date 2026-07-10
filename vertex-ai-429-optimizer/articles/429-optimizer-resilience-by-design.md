@@ -102,3 +102,7 @@ Then paste in the ugliest, most 429-prone loop you have.
 Rate-limit handling usually gets written the worst possible way: under pressure, one incident at a time, patch by patch. But the playbook is stable — backoff with jitter, cache the context, shape the traffic, fall back across models and regions — and a stable playbook is exactly what one well-engineered system prompt can apply consistently, provided you pin the SDK truth it would otherwise misremember and make it account for every strategy it skips.
 
 The Prompt Optimizer needed four agents and a critic to earn trust. This one earns it with a contract: five headings, seven strategies, every verdict in the report. The code is open source in the [Vertex-AI-429-Optimizer repository](https://github.com/UriKatsirPrivate/Vertex-AI-429-Optimizer) — clone it, point it at Gemini, and let the playbook harden your calls before production does it for you.
+
+---
+
+*Disclaimer: This code is provided "as-is" as a demonstration only to illustrate a potential solution. The code does not constitute a Google product or service of any kind, and Google offers no support, warranties, or liability of any kind with its regard. Whoever chooses to use this code accepts all responsibility related to it, including for its implementation, use, and ongoing maintenance. For the avoidance of doubt, this code is not eligible for the Google Open Source Software Vulnerability Rewards Program.*

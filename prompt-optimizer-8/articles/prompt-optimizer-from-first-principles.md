@@ -145,3 +145,7 @@ The Prompt Optimizer is my attempt to encode that: not a template library, but a
 The code is open source in the [genai-packages repository](https://github.com/UriKatsirPrivate/genai-packages) — clone it, point it at Gemini, and let four agents argue about your prompt so you don't have to.
 
 Ready to optimize?
+
+---
+
+*Disclaimer: This code is provided "as-is" as a demonstration only to illustrate a potential solution. The code does not constitute a Google product or service of any kind, and Google offers no support, warranties, or liability of any kind with its regard. Whoever chooses to use this code accepts all responsibility related to it, including for its implementation, use, and ongoing maintenance. For the avoidance of doubt, this code is not eligible for the Google Open Source Software Vulnerability Rewards Program.*

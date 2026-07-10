@@ -116,3 +116,7 @@ One LLM call per turn is the entire inference architecture. Everything else is o
 The Prompt Optimizer and the Skill Creator disagree about architecture because their outputs fail differently. A prompt fails fuzzily — "technique not really realized" — so its checker must be an LLM, and the price is a critic agent and a revision loop. A skill fails mechanically — wrong casing, missing frontmatter, an oversized description — so its checker should be a regex, and the price is nothing.
 
 Spend an LLM where the check needs judgment. Spend a regex where it doesn't. And write the spec twice: once where generation can see it, once where verification can enforce it.
+
+---
+
+*Disclaimer: This code is provided "as-is" as a demonstration only to illustrate a potential solution. The code does not constitute a Google product or service of any kind, and Google offers no support, warranties, or liability of any kind with its regard. Whoever chooses to use this code accepts all responsibility related to it, including for its implementation, use, and ongoing maintenance. For the avoidance of doubt, this code is not eligible for the Google Open Source Software Vulnerability Rewards Program.*
