@@ -1,4 +1,9 @@
 # gcloud auth login
+
+# Claude Code release channel: "stable" or "latest".
+# Edit this value to switch; the script re-pins the install when it changes.
+CLAUDE_CHANNEL="latest"
+
 export CLAUDE_CODE_USE_VERTEX=1
 export ANTHROPIC_VERTEX_PROJECT_ID="landing-zone-demo-341118"
 export CLOUD_ML_REGION="global"
@@ -16,6 +21,14 @@ mkdir -p "$(dirname "$CA_BUNDLE")"
 } > "$CA_BUNDLE" 2>/dev/null
 export NODE_EXTRA_CA_CERTS="$CA_BUNDLE"
 
-gcloud auth application-default login
+gcloud auth application-default print-access-token >/dev/null 2>&1 || gcloud auth application-default login
 "$(dirname "$0")/setup-data-sharing.sh"
-npx @anthropic-ai/claude-code
+
+# Re-pin the install only when CLAUDE_CHANNEL changed since the last launch,
+# so normal starts stay fast and offline-safe.
+chan_file="$HOME/.local/share/claude/.run-sh-channel"
+if [ "$(cat "$chan_file" 2>/dev/null)" != "$CLAUDE_CHANNEL" ]; then
+  "$HOME/.local/bin/claude" install "$CLAUDE_CHANNEL" && printf '%s' "$CLAUDE_CHANNEL" > "$chan_file"
+fi
+
+"$HOME/.local/bin/claude"
