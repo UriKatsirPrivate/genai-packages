@@ -1,0 +1,65 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Prompt Optimizer Pipeline",
+    "quality_profile": "showcase",
+    "output": "diagrams/pipeline.workflow.html"
+  },
+  "lanes": [
+    { "id": "client", "label": "Client / FastAPI" },
+    { "id": "pipeline", "label": "PromptOptimizer" },
+    { "id": "gate", "label": "Critic Gate", "variant": "exception" },
+    { "id": "model", "label": "Gemini (google-genai)" }
+  ],
+  "phases": [
+    { "id": "intake", "label": "Intake", "fromCol": 0, "toCol": 1 },
+    { "id": "draft", "label": "Judge + draft", "fromCol": 2, "toCol": 4, "variant": "emphasis" },
+    { "id": "verify", "label": "Verify + return", "fromCol": 5, "toCol": 5, "variant": "dashed" }
+  ],
+  "groups": [
+    { "id": "revision_loop", "label": "Bounded revision (max_critic_revisions=1)", "lane": "gate", "fromCol": 4, "toCol": 5, "variant": "security" }
+  ],
+  "mainPath": ["client", "api", "analyzer", "judges", "writer", "critic", "response"],
+  "nodes": [
+    { "id": "client", "lane": "client", "col": 0, "type": "external", "label": "Client", "sublabel": "sends use_case", "width": 132 },
+    { "id": "api", "lane": "client", "col": 1, "type": "backend", "label": "POST /optimize", "sublabel": "FastAPI", "width": 132 },
+    { "id": "response", "lane": "client", "col": 5, "type": "backend", "label": "OptimizeResponse", "sublabel": "prompt + verdicts", "width": 132 },
+    { "id": "analyzer", "lane": "pipeline", "col": 2, "type": "backend", "label": "Analyzer", "sublabel": "UseCaseProfile", "width": 132 },
+    { "id": "judges", "lane": "pipeline", "col": 3, "type": "messagebus", "label": "8 Technique Judges", "sublabel": "run in parallel", "tag": "01-08", "width": 132 },
+    { "id": "writer", "lane": "pipeline", "col": 4, "type": "backend", "label": "Prompt Writer", "sublabel": "weaves techniques", "width": 132 },
+    { "id": "critic", "lane": "gate", "col": 5, "type": "security", "label": "Critic", "sublabel": "verifies realized", "tag": "max 1 revision", "width": 132 },
+    { "id": "llm", "lane": "model", "col": 2, "type": "cloud", "label": "Gemini", "sublabel": "structured output", "width": 132 }
+  ],
+  "edges": [
+    { "id": "client-api", "from": "client", "to": "api", "variant": "default" },
+    { "id": "api-analyzer", "from": "api", "to": "analyzer", "label": "use_case", "variant": "default" },
+    { "id": "analyzer-judges", "from": "analyzer", "to": "judges", "label": "UseCaseProfile", "variant": "default" },
+    { "id": "judges-writer", "from": "judges", "to": "writer", "label": "selected, by priority", "variant": "emphasis" },
+    { "id": "writer-critic", "from": "writer", "to": "critic", "label": "optimized_prompt draft", "variant": "security" },
+    { "id": "critic-response", "from": "critic", "to": "response", "label": "approved", "variant": "emphasis", "role": "return" },
+    { "id": "critic-writer-revise", "from": "critic", "to": "writer", "label": "rejected: feedback", "variant": "dashed", "role": "return", "route": "return-left" },
+    { "id": "analyzer-llm", "from": "analyzer", "to": "llm", "label": "generate_structured", "variant": "dashed", "role": "async" },
+    { "id": "judges-llm", "from": "judges", "to": "llm", "label": "8x generate_structured", "variant": "dashed", "role": "async" },
+    { "id": "writer-llm", "from": "writer", "to": "llm", "label": "generate_structured", "variant": "dashed", "role": "async" },
+    { "id": "critic-llm", "from": "critic", "to": "llm", "label": "generate_structured", "variant": "dashed", "role": "async" }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "Bounded revision",
+      "items": [
+        "Critic checks that every selected technique is actually realized in the prompt text",
+        "On rejection, the Writer redrafts once with the critic's feedback (Settings.max_critic_revisions = 1)"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Technique catalog",
+      "items": [
+        "8 techniques judged independently from first principles, each reporting relevant/priority/reason",
+        "technique_id and name are always overwritten from app/techniques.py, never trusted from model output"
+      ]
+    }
+  ]
+}
