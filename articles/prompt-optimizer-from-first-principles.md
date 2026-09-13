@@ -115,8 +115,8 @@ The stack is small:
 The whole pipeline is testable **without GCP credentials**: the test suite runs against a fake LLM, so CI verifies the orchestration logic (parallel judging, the revision loop, the streaming protocol) deterministically.
 
 ```bash
-git clone https://github.com/UriKatsirPrivate/genai-packages.git
-cd genai-packages/prompt-optimizer
+git clone https://github.com/UriKatsirPrivate/prompt-optimizer-8.git
+cd prompt-optimizer-8
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
 export GOOGLE_CLOUD_PROJECT=...  # gcloud auth application-default login for local ADC
@@ -143,7 +143,7 @@ Prompt tips age; first principles don't. Tokenizers will change and models will 
 
 The Prompt Optimizer is my attempt to encode that: a system that **reasons about your task from first principles** and shows its work at every step.
 
-The code is open source in the [genai-packages repository](https://github.com/UriKatsirPrivate/genai-packages). Clone it, point it at Gemini, and let four agents argue about your prompt so you don't have to.
+The code is open source in the [prompt-optimizer-8 repository](https://github.com/UriKatsirPrivate/prompt-optimizer-8). Clone it, point it at Gemini, and let four agents argue about your prompt so you don't have to.
 
 ---
 

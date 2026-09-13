@@ -1,4 +1,4 @@
-# genai-packages
+# prompt-optimizer-8
 
 ## Articles
 
