@@ -14,7 +14,8 @@ A monorepo of GenAI packages and demos. Each package lives in its own directory 
 cd prompt-optimizer-8
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
-export GEMINI_API_KEY=...        # or GOOGLE_GENAI_USE_VERTEXAI=true + gcloud ADC
+export GOOGLE_CLOUD_PROJECT=...  # Vertex AI only; gcloud auth application-default login for local ADC
+export GOOGLE_CLOUD_LOCATION=global
 .venv/bin/uvicorn app.main:app --reload
 
 ./demo.sh                        # exercise the API against the running server
