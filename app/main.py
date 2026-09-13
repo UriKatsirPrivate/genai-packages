@@ -32,7 +32,11 @@ def create_app(optimizer: PromptOptimizer | None = None) -> FastAPI:
             app.state.model = optimizer.settings.model
         else:
             settings = get_settings()
-            llm = LLM(model=settings.model, temperature=settings.temperature)
+            llm = LLM(
+                model=settings.model,
+                temperature=settings.temperature,
+                max_concurrency=settings.max_concurrency,
+            )
             app.state.optimizer = PromptOptimizer(llm, settings)
             app.state.model = settings.model
         yield

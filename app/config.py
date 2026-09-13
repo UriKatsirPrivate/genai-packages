@@ -16,6 +16,9 @@ class Settings:
     temperature: float = field(
         default_factory=lambda: float(os.environ.get("GEMINI_TEMPERATURE", "0.2"))
     )
+    max_concurrency: int = field(
+        default_factory=lambda: int(os.environ.get("GEMINI_MAX_CONCURRENCY", "5"))
+    )
     max_critic_revisions: int = 1
 
 

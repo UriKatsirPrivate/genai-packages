@@ -6,13 +6,26 @@ fast path, the resp.text JSON fallback, the retry-on-validation-failure loop,
 and SDK exception wrapping — were exercised anywhere else.
 """
 
+import asyncio
 import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from google.genai import errors as genai_errors
 
 from app.llm import LLM, LLMError
 from app.models import ChatReply
+
+
+def _api_error(code: int) -> genai_errors.APIError:
+    """Build a real APIError/ClientError/ServerError, as the SDK would raise."""
+    details = {"error": {"code": code, "message": "boom", "status": "ERROR"}}
+    try:
+        genai_errors.APIError.raise_error(code, details, None)
+    except genai_errors.APIError as e:
+        return e
+    raise AssertionError("raise_error did not raise")
+
 
 
 def _resp(parsed=None, text=None):
@@ -108,3 +121,67 @@ async def test_generate_structured_does_not_retry_after_sdk_exception():
         await llm.generate_structured(system="sys", user="usr", schema=ChatReply)
 
     call.assert_awaited_once()
+
+
+async def test_generate_structured_retries_with_backoff_on_429(monkeypatch):
+    sleep = AsyncMock()
+    monkeypatch.setattr("app.llm.asyncio.sleep", sleep)
+    reply = ChatReply(reply="hi")
+    client, call = _client_returning(_api_error(429), _resp(parsed=reply))
+    llm = LLM(model="m", client=client)
+
+    result = await llm.generate_structured(system="sys", user="usr", schema=ChatReply)
+
+    assert result is reply
+    assert call.await_count == 2
+    sleep.assert_awaited_once()
+
+
+async def test_generate_structured_raises_after_exhausting_api_retries(monkeypatch):
+    monkeypatch.setattr("app.llm.asyncio.sleep", AsyncMock())
+    client, call = _client_returning(_api_error(429))
+    llm = LLM(model="m", client=client)
+
+    with pytest.raises(LLMError, match="ChatReply"):
+        await llm.generate_structured(system="sys", user="usr", schema=ChatReply)
+
+    assert call.await_count == 5
+
+
+async def test_generate_structured_does_not_retry_non_retryable_api_error(monkeypatch):
+    sleep = AsyncMock()
+    monkeypatch.setattr("app.llm.asyncio.sleep", sleep)
+    client, call = _client_returning(_api_error(400))
+    llm = LLM(model="m", client=client)
+
+    with pytest.raises(LLMError):
+        await llm.generate_structured(system="sys", user="usr", schema=ChatReply)
+
+    call.assert_awaited_once()
+    sleep.assert_not_awaited()
+
+
+async def test_max_concurrency_limits_simultaneous_calls():
+    in_flight = 0
+    peak = 0
+
+    async def slow_generate_content(**_kwargs):
+        nonlocal in_flight, peak
+        in_flight += 1
+        peak = max(peak, in_flight)
+        await asyncio.sleep(0)
+        in_flight -= 1
+        return _resp(parsed=ChatReply(reply="hi"))
+
+    client = MagicMock()
+    client.aio.models.generate_content = AsyncMock(side_effect=slow_generate_content)
+    llm = LLM(model="m", client=client, max_concurrency=2)
+
+    await asyncio.gather(
+        *(
+            llm.generate_structured(system="sys", user="usr", schema=ChatReply)
+            for _ in range(5)
+        )
+    )
+
+    assert peak <= 2
