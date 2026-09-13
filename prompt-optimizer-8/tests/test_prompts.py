@@ -129,7 +129,7 @@ def test_audit_hardening_phrases_present():
 def test_chat_code_rules_default_to_gemini():
     assert "never announce code without including it" in CHAT_SYSTEM
     assert "google-genai" in CHAT_SYSTEM
-    assert "genai.Client()" in CHAT_SYSTEM
+    assert "genai.Client(vertexai=True)" in CHAT_SYSTEM
     assert "legacy" in CHAT_SYSTEM  # warns off the old google-generativeai SDK
     assert "unless the user explicitly names another provider" in CHAT_SYSTEM
 

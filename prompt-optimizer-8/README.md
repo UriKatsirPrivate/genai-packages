@@ -42,7 +42,8 @@ The response always reports **all eight** verdicts — applied and skipped — e
 cd prompt-optimizer
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
-export GEMINI_API_KEY=...        # or GOOGLE_GENAI_USE_VERTEXAI=true + gcloud ADC
+export GOOGLE_CLOUD_PROJECT=...  # Vertex AI only; gcloud auth application-default login for local ADC
+export GOOGLE_CLOUD_LOCATION=global
 .venv/bin/uvicorn app.main:app --reload
 ```
 
@@ -50,8 +51,9 @@ Environment variables:
 
 | Var | Default | |
 |-----|---------|---|
-| `GEMINI_API_KEY` | — | consumed by `google-genai` |
-| `GEMINI_MODEL` | `gemini-3.5-flash` | any Gemini model id; on Vertex, 3.x models need `GOOGLE_CLOUD_LOCATION=global` |
+| `GOOGLE_CLOUD_PROJECT` | — | required, Vertex AI project |
+| `GOOGLE_CLOUD_LOCATION` | — | required; 3.x models need `global` |
+| `GEMINI_MODEL` | `gemini-3.8-flash` | any Gemini model id |
 | `GEMINI_TEMPERATURE` | `0.2` | |
 
 ## Call it
@@ -78,7 +80,7 @@ Response shape:
   "critic": { "approved": true, "checks": [ ... ] },
   "revised": false,                     // true if the critic forced a rewrite
   "design_notes": "...",
-  "model": "gemini-3.5-flash"
+  "model": "gemini-3.8-flash"
 }
 ```
 

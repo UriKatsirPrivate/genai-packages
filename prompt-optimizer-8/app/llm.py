@@ -1,7 +1,8 @@
 """Async Gemini wrapper: structured JSON output validated against Pydantic.
 
-The genai.Client is created lazily on first use so the app stays importable
-without a GEMINI_API_KEY; tests inject a fake client instead.
+Auth is Vertex AI only (ADC / service identity), never GEMINI_API_KEY. The
+genai.Client is created lazily on first use so the app stays importable
+without GCP credentials; tests inject a fake client instead.
 """
 
 from typing import TypeVar
@@ -31,7 +32,7 @@ class LLM:
     @property
     def client(self) -> genai.Client:
         if self._client is None:
-            self._client = genai.Client()
+            self._client = genai.Client(vertexai=True)
         return self._client
 
     async def generate_structured(

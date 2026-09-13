@@ -6,12 +6,12 @@ from dataclasses import dataclass, field
 class Settings:
     """Runtime configuration, read from the environment.
 
-    GEMINI_API_KEY is consumed implicitly by google-genai's Client();
-    GOOGLE_GENAI_USE_VERTEXAI=true switches the SDK to Vertex AI.
+    Auth is always Vertex AI (GOOGLE_CLOUD_PROJECT / GOOGLE_CLOUD_LOCATION +
+    ADC or service identity) — the client is constructed with vertexai=True.
     """
 
     model: str = field(
-        default_factory=lambda: os.environ.get("GEMINI_MODEL", "gemini-3.5-flash")
+        default_factory=lambda: os.environ.get("GEMINI_MODEL", "gemini-3.8-flash")
     )
     temperature: float = field(
         default_factory=lambda: float(os.environ.get("GEMINI_TEMPERATURE", "0.2"))

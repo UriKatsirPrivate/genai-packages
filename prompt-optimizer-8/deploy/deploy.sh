@@ -50,7 +50,7 @@ gcloud run deploy "$SERVICE_NAME" \
   --service-account "$SA_EMAIL" \
   --memory "$MEMORY" --cpu "$CPU" \
   --min-instances "$MIN_INSTANCES" --max-instances "$MAX_INSTANCES" \
-  --set-env-vars "GOOGLE_GENAI_USE_VERTEXAI=true,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${VERTEX_LOCATION},GEMINI_MODEL=${GEMINI_MODEL}" \
+  --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID},GOOGLE_CLOUD_LOCATION=${VERTEX_LOCATION},GEMINI_MODEL=${GEMINI_MODEL}" \
   "$AUTH_FLAG"
 
 URL="$(gcloud run services describe "$SERVICE_NAME" \

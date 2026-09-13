@@ -106,20 +106,21 @@ Paste a use case (and optionally your existing prompt), watch the eight judges r
 
 The stack is small:
 
-- **Python + FastAPI**, with the optimizer built lazily at startup; importing the app requires no API key.
-- **Gemini via the `google-genai` SDK**, which works with a plain `GEMINI_API_KEY` or against **Vertex AI** with application-default credentials (`GOOGLE_GENAI_USE_VERTEXAI=true`).
+- **Python + FastAPI**, with the optimizer built lazily at startup; importing the app requires no GCP credentials.
+- **Gemini via the `google-genai` SDK**, against **Vertex AI** only, authenticated with application-default credentials or the runtime service identity.
 - **Pydantic structured output** for every stage: the analyzer, judges, writer, critic, and chat agent all return validated, typed objects. No JSON parsing of free text, anywhere.
 - **`asyncio.gather`** for the judge fan-out: eight LLM calls in the time of one.
 - A single dataclass catalog (`techniques.py`) is the **source of truth** for the eight techniques; the pipeline overwrites technique ids and names in verdicts from the catalog instead of trusting model output.
 
-The whole pipeline is testable **without an API key**: the test suite runs against a fake LLM, so CI verifies the orchestration logic (parallel judging, the revision loop, the streaming protocol) deterministically.
+The whole pipeline is testable **without GCP credentials**: the test suite runs against a fake LLM, so CI verifies the orchestration logic (parallel judging, the revision loop, the streaming protocol) deterministically.
 
 ```bash
 git clone https://github.com/UriKatsirPrivate/genai-packages.git
 cd genai-packages/prompt-optimizer
 python3 -m venv .venv && .venv/bin/pip install -e ".[dev]"
 
-export GEMINI_API_KEY=...
+export GOOGLE_CLOUD_PROJECT=...  # gcloud auth application-default login for local ADC
+export GOOGLE_CLOUD_LOCATION=global
 .venv/bin/uvicorn app.main:app --reload
 ```
 

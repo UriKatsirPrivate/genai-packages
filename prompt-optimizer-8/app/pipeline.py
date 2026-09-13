@@ -256,9 +256,9 @@ google-generativeai package):
 
     from google import genai
 
-    client = genai.Client()  # reads GEMINI_API_KEY; GOOGLE_GENAI_USE_VERTEXAI=true for Vertex
+    client = genai.Client(vertexai=True)  # reads GOOGLE_CLOUD_PROJECT / GOOGLE_CLOUD_LOCATION + ADC
     resp = client.models.generate_content(
-        model="gemini-3.5-flash",
+        model="gemini-3.8-flash",
         contents=filled_prompt,
     )
     print(resp.text)\
