@@ -24,7 +24,6 @@ async def test_chat_grounds_the_call_in_run_context(fake_llm, optimizer):
     result = await _result(optimizer)
     reply = await optimizer.chat(
         ChatRequest(
-            use_case="anything",
             result=result,
             messages=[ChatTurn(role="user", content="why was 04 skipped?")],
         )
@@ -44,7 +43,6 @@ async def test_chat_history_is_forwarded_in_order(fake_llm, optimizer):
     result = await _result(optimizer)
     await optimizer.chat(
         ChatRequest(
-            use_case="anything",
             result=result,
             messages=[
                 ChatTurn(role="user", content="first question"),
@@ -68,7 +66,6 @@ def test_chat_endpoint_roundtrip_and_updated_prompt():
         resp = client.post(
             "/chat",
             json={
-                "use_case": "anything",
                 "result": result,
                 "messages": [{"role": "user", "content": "make it shorter"}],
             },
@@ -82,9 +79,7 @@ def test_chat_endpoint_roundtrip_and_updated_prompt():
 def test_chat_endpoint_requires_messages():
     with make_client(FakeLLM()) as client:
         result = client.post("/optimize", json={"use_case": "anything"}).json()
-        resp = client.post(
-            "/chat", json={"use_case": "anything", "result": result, "messages": []}
-        )
+        resp = client.post("/chat", json={"result": result, "messages": []})
     assert resp.status_code == 422
 
 
@@ -96,7 +91,6 @@ def test_chat_endpoint_maps_llm_error_to_502():
         resp = client.post(
             "/chat",
             json={
-                "use_case": "anything",
                 "result": result,
                 "messages": [{"role": "user", "content": "hello"}],
             },

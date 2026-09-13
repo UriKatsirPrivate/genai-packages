@@ -103,6 +103,8 @@ class OptimizeRequest(BaseModel):
 
 
 class OptimizeResponse(BaseModel):
+    use_case: str
+    existing_prompt: str | None = None
     optimized_prompt: str
     use_case_profile: UseCaseProfile
     techniques: list[TechniqueVerdict] = Field(
@@ -125,8 +127,6 @@ class ChatTurn(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    use_case: str
-    existing_prompt: str | None = None
     result: OptimizeResponse = Field(
         description="The completed run the conversation is about; "
         "optimized_prompt reflects any edits from earlier chat turns"

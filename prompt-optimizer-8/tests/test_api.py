@@ -44,7 +44,13 @@ def test_llm_error_maps_to_502():
     assert resp.status_code == 502
 
 
-def test_healthz():
+def test_health():
+    with make_client(FakeLLM()) as client:
+        resp = client.get("/health")
+    assert resp.status_code == 200
+
+
+def test_healthz_alias_still_served():
     with make_client(FakeLLM()) as client:
         resp = client.get("/healthz")
     assert resp.status_code == 200

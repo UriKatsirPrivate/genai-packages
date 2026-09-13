@@ -378,6 +378,8 @@ class PromptOptimizer:
             )
 
         return OptimizeResponse(
+            use_case=req.use_case,
+            existing_prompt=req.existing_prompt,
             optimized_prompt=writer.optimized_prompt,
             use_case_profile=profile,
             techniques=sorted(verdicts, key=lambda v: v.technique_id),
@@ -388,10 +390,12 @@ class PromptOptimizer:
         )
 
     async def chat(self, req: ChatRequest) -> ChatReply:
-        blocks = [_block("USE CASE", req.use_case)]
-        if req.existing_prompt:
+        blocks = [_block("USE CASE", req.result.use_case)]
+        if req.result.existing_prompt:
             blocks.append(
-                _block("ORIGINAL PROMPT (before optimization)", req.existing_prompt)
+                _block(
+                    "ORIGINAL PROMPT (before optimization)", req.result.existing_prompt
+                )
             )
         blocks.append(
             _block(

@@ -428,14 +428,13 @@
   });
   syncThemeBtn();
 
-  fetch("/healthz").then((r) => r.json())
+  fetch("/health").then((r) => r.json())
     .then((h) => { $("model-badge").textContent = h.model || ""; })
     .catch(() => {});
 
   let timer = null;
   const prog = { done: 0, planned: 11 };
   let currentResult = null;
-  let lastRun = null;
   let chatHistory = [];
 
   function setAssistantContent(el, text) {
@@ -501,8 +500,6 @@
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          use_case: lastRun.use_case,
-          existing_prompt: lastRun.existing_prompt,
           result: currentResult,
           messages: chatHistory,
         }),
@@ -564,7 +561,6 @@
   $("start-over").addEventListener("click", () => {
     if ($("go").disabled) return; // a run is in flight
     currentResult = null;
-    lastRun = null;
     chatHistory = [];
     $("chat-messages").innerHTML = "";
     $("chat-panel").classList.remove("on");
@@ -690,7 +686,6 @@
 
     $("go").disabled = true;
     $("error").classList.remove("on");
-    lastRun = { use_case: useCase, existing_prompt: existing || null };
     resetProgress();
     $("status").classList.add("on");
     const t0 = Date.now();
@@ -768,7 +763,7 @@
     $("chat-panel").classList.add("on");
 
     $("form").style.display = "none";
-    $("rs-text").textContent = lastRun.use_case;
+    $("rs-text").textContent = data.use_case;
     $("rs-chevron").style.transform = "";
     $("run-summary").classList.add("on");
     document.querySelector(".left-col").classList.add("chat-mode");

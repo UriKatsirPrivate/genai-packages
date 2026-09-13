@@ -38,18 +38,19 @@ class LLM:
     async def generate_structured(
         self, *, system: str, user: str, schema: type[T]
     ) -> T:
+        config = types.GenerateContentConfig(
+            system_instruction=system,
+            response_mime_type="application/json",
+            response_schema=schema,
+            temperature=self._temperature,
+        )
         last_error: Exception | None = None
         for _attempt in range(2):
             try:
                 resp = await self.client.aio.models.generate_content(
                     model=self._model,
                     contents=user,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system,
-                        response_mime_type="application/json",
-                        response_schema=schema,
-                        temperature=self._temperature,
-                    ),
+                    config=config,
                 )
             except Exception as e:
                 raise LLMError(

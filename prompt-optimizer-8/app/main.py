@@ -59,7 +59,7 @@ def create_app(optimizer: PromptOptimizer | None = None) -> FastAPI:
     async def optimize_stream(req: OptimizeRequest) -> StreamingResponse:
         """NDJSON stream: one progress event per line, then a final
         {"event": "result"} (or {"event": "error"}) line."""
-        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+        queue: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue(maxsize=32)
 
         async def progress(event: dict[str, Any]) -> None:
             await queue.put(event)
@@ -93,9 +93,13 @@ def create_app(optimizer: PromptOptimizer | None = None) -> FastAPI:
         except LLMError as exc:
             raise HTTPException(status_code=502, detail=str(exc)) from exc
 
-    @app.get("/healthz")
-    async def healthz() -> dict[str, str]:
+    @app.get("/health")
+    async def health() -> dict[str, str]:
         return {"status": "ok", "model": app.state.model}
+
+    # /healthz is a reserved path on *.run.app — Cloud Run's frontend intercepts
+    # it and returns its own 404 — but keep it for non-Cloud-Run deployments.
+    app.get("/healthz", include_in_schema=False)(health)
 
     @app.get("/", include_in_schema=False)
     async def index() -> FileResponse:

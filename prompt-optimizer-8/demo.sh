@@ -4,8 +4,8 @@ set -euo pipefail
 
 BASE="${1:-http://localhost:8000}"
 
-echo "== healthz =="
-curl -sf "$BASE/healthz" | jq .
+echo "== health =="
+curl -sf "$BASE/health" | jq .
 
 echo
 echo "== optimize: earnings-report extraction (with an existing naive prompt) =="

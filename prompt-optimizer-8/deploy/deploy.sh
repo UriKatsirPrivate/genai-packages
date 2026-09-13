@@ -37,7 +37,7 @@ echo "==> Building ${IMAGE}:${TAG} with Cloud Build"
 gcloud builds submit "$SRC_DIR" \
   --config "$SCRIPT_DIR/cloudbuild.yaml" \
   --substitutions "_IMAGE=${IMAGE}:${TAG}" \
-  --ignore-file deploy/.gcloudignore \
+  --ignore-file "$SCRIPT_DIR/.gcloudignore" \
   --project "$PROJECT_ID"
 
 AUTH_FLAG="--no-allow-unauthenticated"
@@ -57,5 +57,5 @@ URL="$(gcloud run services describe "$SERVICE_NAME" \
   --region "$REGION" --project "$PROJECT_ID" --format 'value(status.url)')"
 echo "==> Deployed: $URL"
 # Note: /healthz is a reserved path on *.run.app — Google's frontend intercepts
-# it and returns its own 404, so probe /docs (or /openapi.json) instead.
+# it and returns its own 404, so probe /health instead.
 echo "==> API docs: $URL/docs"

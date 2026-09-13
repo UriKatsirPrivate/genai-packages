@@ -71,6 +71,8 @@ Response shape:
 
 ```jsonc
 {
+  "use_case": "...",                    // echoed from the request
+  "existing_prompt": null,              // echoed from the request, if any
   "optimized_prompt": "...",            // ready to use
   "use_case_profile": { ... },          // analyzer output
   "techniques": [                       // all 8, each with reason
@@ -84,7 +86,7 @@ Response shape:
 }
 ```
 
-`GET /healthz` for liveness.
+`GET /health` for liveness (`/healthz` is kept as an alias, but Cloud Run's frontend intercepts that path on `*.run.app`).
 
 ## Tests
 
